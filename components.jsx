@@ -275,40 +275,36 @@ function useBalloon(){ return useContext(BalloonCtx); }
 
 function BalloonSVG({ color }){
   return (
-    <svg width="38" height="54" viewBox="0 0 38 54" style={{display:'block',filter:'drop-shadow(0 2px 4px rgba(0,0,0,.18))'}}>
-      {/* body */}
-      <ellipse cx="19" cy="18" rx="17" ry="18" fill={color} opacity="0.93"/>
-      {/* shine */}
-      <ellipse cx="12" cy="10" rx="4.5" ry="6.5" fill="white" opacity="0.22"/>
-      {/* knot */}
-      <path d="M17 36 Q19 39.5 21 36" stroke={color} strokeWidth="2.2" fill="none" strokeLinecap="round"/>
-      {/* string */}
-      <path d="M19 39.5 Q16 45 19 52" stroke="#bbb" strokeWidth="1.4" fill="none" strokeLinecap="round"/>
+    <svg width="38" height="54" viewBox="0 0 38 54" style={{display:'block'}}>
+      <ellipse cx="19" cy="18" rx="17" ry="18" fill={color} opacity="0.92"/>
+      <ellipse cx="12" cy="10" rx="4" ry="6" fill="white" opacity="0.22"/>
+      <path d="M17 36 Q19 40 21 36" stroke={color} strokeWidth="2" fill="none" strokeLinecap="round"/>
+      <path d="M19 40 Q16 46 19 52" stroke="#bbb" strokeWidth="1.5" fill="none" strokeLinecap="round"/>
     </svg>
   );
 }
 
 function PopBurst({ color }){
-  const angles = [0,45,90,135,180,225,270,315];
-  const dists  = [32,28,36,26,34,30,38,28];
+  const [out, setOut] = useState(false);
+  useEffect(()=>{ const t=setTimeout(()=>setOut(true),30); return ()=>clearTimeout(t); },[]);
   return (
     <div style={{position:'relative',width:38,height:38}}>
-      {/* flash circle */}
-      <div style={{position:'absolute',inset:0,borderRadius:'50%',background:color,
-        animation:'popFlash .45s ease-out forwards'}}/>
-      {/* particles */}
-      {angles.map((ang,i)=>{
-        const rad = ang * Math.PI / 180;
-        const d   = dists[i];
+      <div style={{
+        position:'absolute',inset:0,borderRadius:'50%',background:color,
+        transform: out?'scale(2.2)':'scale(0.4)',
+        opacity: out?0:1,
+        transition:'transform .4s ease-out, opacity .35s ease-out',
+      }}/>
+      {[0,45,90,135,180,225,270,315].map((ang,i)=>{
+        const rad=ang*Math.PI/180, d=out?38+i*2:0;
         return (
           <div key={i} style={{
-            position:'absolute', top:'50%', left:'50%',
-            width:9, height:9, marginTop:-4, marginLeft:-4,
-            borderRadius:'50%', background: i%2===0 ? color : '#fff',
-            opacity:1,
-            '--dx': (Math.cos(rad)*d)+'px',
-            '--dy': (Math.sin(rad)*d)+'px',
-            animation:'particlePop .55s ease-out forwards',
+            position:'absolute',top:'50%',left:'50%',
+            width:8,height:8,marginTop:-4,marginLeft:-4,
+            borderRadius:'50%',background:i%2===0?color:'#fff',
+            transform:`translate(${Math.cos(rad)*d}px,${Math.sin(rad)*d}px) scale(${out?0:1})`,
+            opacity:out?0:1,
+            transition:`transform ${.35+i*.025}s ease-out, opacity .45s ease-out`,
           }}/>
         );
       })}
@@ -317,26 +313,26 @@ function PopBurst({ color }){
 }
 
 function Balloon({ startX, delay, color, scale }){
-  const totalMs  = 2200 + Math.random()*900;
-  const popFrac  = 0.60 + Math.random()*0.20;
-  const [phase, setPhase] = useState('idle'); // idle → rise → pop → done
+  const totalMs = useRef(2300 + Math.random()*800).current;
+  const popAt   = useRef(delay*1000 + totalMs*(0.60+Math.random()*0.22)).current;
+  const [phase, setPhase] = useState('idle');
 
   useEffect(()=>{
-    const t0 = setTimeout(()=>setPhase('rise'),  delay*1000);
-    const t1 = setTimeout(()=>setPhase('pop'),   delay*1000 + totalMs*popFrac);
-    const t2 = setTimeout(()=>setPhase('done'),  delay*1000 + totalMs*popFrac + 650);
+    const t0 = setTimeout(()=>setPhase('rise'), delay*1000);
+    const t1 = setTimeout(()=>setPhase('pop'),  popAt);
+    const t2 = setTimeout(()=>setPhase('done'), popAt+700);
     return ()=>{ clearTimeout(t0); clearTimeout(t1); clearTimeout(t2); };
   }, []);
 
-  if(phase==='idle' || phase==='done') return null;
+  if(phase==='idle'||phase==='done') return null;
 
   return (
     <div style={{
-      position:'fixed', left:startX+'%', bottom:'-60px',
-      pointerEvents:'none', zIndex:9998,
+      position:'fixed', left:startX+'%', bottom:'-65px',
+      pointerEvents:'none', zIndex:9999,
       animation:`balloonRise ${totalMs/1000}s linear forwards`,
     }}>
-      <div style={{transform:`scale(${scale})`, animation:'balloonWobble 1.4s ease-in-out infinite'}}>
+      <div style={{transform:`scale(${scale})`, animation:'balloonWobble 1.5s ease-in-out infinite'}}>
         {phase==='rise' && <BalloonSVG color={color}/>}
         {phase==='pop'  && <PopBurst   color={color}/>}
       </div>
@@ -346,25 +342,30 @@ function Balloon({ startX, delay, color, scale }){
 
 function BalloonHost({ children }){
   const [balloons, setBalloons] = useState([]);
-  const launch = ()=>{
-    const COLORS = ['#ef4444','#3b82f6','#f59e0b','#10b981','#8b5cf6','#ec4899','#f97316'];
-    const count  = 3 + Math.floor(Math.random()*2);
-    const batch  = Array.from({length:count},(_,i)=>({
-      id:    Date.now()+i,
-      startX: 8 + Math.random()*84,
-      delay:  i*0.35 + Math.random()*0.15,
+  const launchRef = useRef(null);
+  launchRef.current = ()=>{
+    const COLORS=['#ef4444','#3b82f6','#f59e0b','#10b981','#8b5cf6','#ec4899','#f97316'];
+    const count = 3+Math.floor(Math.random()*2);
+    const batch = Array.from({length:count},(_,i)=>({
+      id: Date.now()+i,
+      startX: 8+Math.random()*82,
+      delay:  i*0.35+Math.random()*0.15,
       color:  COLORS[Math.floor(Math.random()*COLORS.length)],
-      scale:  0.82 + Math.random()*0.38,
+      scale:  0.82+Math.random()*0.36,
     }));
     setBalloons(b=>[...b,...batch]);
-    setTimeout(()=>setBalloons(b=>b.filter(x=>!batch.find(n=>n.id===x.id))), 5500);
+    setTimeout(()=>setBalloons(b=>b.filter(x=>!batch.find(n=>n.id===x.id))),5800);
   };
+  const launch = useMemo(()=>()=>launchRef.current(),[]);
   return (
     <BalloonCtx.Provider value={launch}>
       {children}
-      {balloons.map(b=>(
-        <Balloon key={b.id} startX={b.startX} delay={b.delay} color={b.color} scale={b.scale}/>
-      ))}
+      {ReactDOM.createPortal(
+        <div style={{position:'fixed',inset:0,pointerEvents:'none',zIndex:9999}}>
+          {balloons.map(b=><Balloon key={b.id} startX={b.startX} delay={b.delay} color={b.color} scale={b.scale}/>)}
+        </div>,
+        document.body
+      )}
     </BalloonCtx.Provider>
   );
 }
