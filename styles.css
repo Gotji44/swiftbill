@@ -476,3 +476,28 @@ input,select,textarea{font-family:inherit}
 /* drawing highlight animation */
 @keyframes hl-pulse{0%,100%{opacity:1}50%{opacity:.3}}
 .svg-hl{animation:hl-pulse 1.4s ease-in-out infinite}
+
+/* ===== Balloon animations ===== */
+@keyframes balloonRise {
+  0%   { transform: translateY(0)     translateX(0px)  rotate(-4deg); }
+  15%  { transform: translateY(-15vh) translateX(10px) rotate(4deg); }
+  30%  { transform: translateY(-30vh) translateX(-8px) rotate(-3deg); }
+  45%  { transform: translateY(-45vh) translateX(12px) rotate(5deg); }
+  60%  { transform: translateY(-60vh) translateX(-6px) rotate(-4deg); }
+  75%  { transform: translateY(-75vh) translateX(9px)  rotate(3deg); }
+  90%  { transform: translateY(-90vh) translateX(-4px) rotate(-2deg); }
+  100% { transform: translateY(-115vh) translateX(5px) rotate(2deg); }
+}
+@keyframes balloonWobble {
+  0%,100% { transform: rotate(-4deg) scaleX(1); }
+  50%     { transform: rotate(4deg)  scaleX(0.96); }
+}
+@keyframes popFlash {
+  0%   { transform: scale(0.6); opacity: 1; }
+  40%  { transform: scale(1.8); opacity: 0.7; }
+  100% { transform: scale(2.4); opacity: 0; }
+}
+@keyframes particlePop {
+  0%   { transform: translate(0,0) scale(1); opacity: 1; }
+  100% { transform: translate(var(--dx),var(--dy)) scale(0); opacity: 0; }
+}

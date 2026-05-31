@@ -278,5 +278,5 @@ function App(){
 }
 
 ReactDOM.createRoot(document.getElementById('root')).render(
-  <ToastHost><App/></ToastHost>
+  <ToastHost><BalloonHost><App/></BalloonHost></ToastHost>
 );

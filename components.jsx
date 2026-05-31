@@ -135,6 +135,12 @@ function SideModal({ title, sub, children, onClose, foot }) {
 /* ---------- Sidebar ---------- */
 function Sidebar({ screen, project, collapsed, onToggle, onNav, onExit, user, locked }) {
   const inProject = !!project;
+  const launchBalloons = useBalloon();
+  const prevCollapsed  = useRef(collapsed);
+  useEffect(()=>{
+    if(collapsed && !prevCollapsed.current) launchBalloons();
+    prevCollapsed.current = collapsed;
+  }, [collapsed]);
 
   // ดึงชื่อ/อักษรย่อจาก user จริง
   const displayName = user?.user_metadata?.full_name
@@ -263,5 +269,105 @@ function ConfBadge({ c }) {
   return <span className={'conf conf-' + b}>{c}%</span>;
 }
 
+/* ===== Balloon animation ===== */
+const BalloonCtx = createContext(()=>{});
+function useBalloon(){ return useContext(BalloonCtx); }
+
+function BalloonSVG({ color }){
+  return (
+    <svg width="38" height="54" viewBox="0 0 38 54" style={{display:'block',filter:'drop-shadow(0 2px 4px rgba(0,0,0,.18))'}}>
+      {/* body */}
+      <ellipse cx="19" cy="18" rx="17" ry="18" fill={color} opacity="0.93"/>
+      {/* shine */}
+      <ellipse cx="12" cy="10" rx="4.5" ry="6.5" fill="white" opacity="0.22"/>
+      {/* knot */}
+      <path d="M17 36 Q19 39.5 21 36" stroke={color} strokeWidth="2.2" fill="none" strokeLinecap="round"/>
+      {/* string */}
+      <path d="M19 39.5 Q16 45 19 52" stroke="#bbb" strokeWidth="1.4" fill="none" strokeLinecap="round"/>
+    </svg>
+  );
+}
+
+function PopBurst({ color }){
+  const angles = [0,45,90,135,180,225,270,315];
+  const dists  = [32,28,36,26,34,30,38,28];
+  return (
+    <div style={{position:'relative',width:38,height:38}}>
+      {/* flash circle */}
+      <div style={{position:'absolute',inset:0,borderRadius:'50%',background:color,
+        animation:'popFlash .45s ease-out forwards'}}/>
+      {/* particles */}
+      {angles.map((ang,i)=>{
+        const rad = ang * Math.PI / 180;
+        const d   = dists[i];
+        return (
+          <div key={i} style={{
+            position:'absolute', top:'50%', left:'50%',
+            width:9, height:9, marginTop:-4, marginLeft:-4,
+            borderRadius:'50%', background: i%2===0 ? color : '#fff',
+            opacity:1,
+            '--dx': (Math.cos(rad)*d)+'px',
+            '--dy': (Math.sin(rad)*d)+'px',
+            animation:'particlePop .55s ease-out forwards',
+          }}/>
+        );
+      })}
+    </div>
+  );
+}
+
+function Balloon({ startX, delay, color, scale }){
+  const totalMs  = 2200 + Math.random()*900;
+  const popFrac  = 0.60 + Math.random()*0.20;
+  const [phase, setPhase] = useState('idle'); // idle → rise → pop → done
+
+  useEffect(()=>{
+    const t0 = setTimeout(()=>setPhase('rise'),  delay*1000);
+    const t1 = setTimeout(()=>setPhase('pop'),   delay*1000 + totalMs*popFrac);
+    const t2 = setTimeout(()=>setPhase('done'),  delay*1000 + totalMs*popFrac + 650);
+    return ()=>{ clearTimeout(t0); clearTimeout(t1); clearTimeout(t2); };
+  }, []);
+
+  if(phase==='idle' || phase==='done') return null;
+
+  return (
+    <div style={{
+      position:'fixed', left:startX+'%', bottom:'-60px',
+      pointerEvents:'none', zIndex:9998,
+      animation:`balloonRise ${totalMs/1000}s linear forwards`,
+    }}>
+      <div style={{transform:`scale(${scale})`, animation:'balloonWobble 1.4s ease-in-out infinite'}}>
+        {phase==='rise' && <BalloonSVG color={color}/>}
+        {phase==='pop'  && <PopBurst   color={color}/>}
+      </div>
+    </div>
+  );
+}
+
+function BalloonHost({ children }){
+  const [balloons, setBalloons] = useState([]);
+  const launch = ()=>{
+    const COLORS = ['#ef4444','#3b82f6','#f59e0b','#10b981','#8b5cf6','#ec4899','#f97316'];
+    const count  = 3 + Math.floor(Math.random()*2);
+    const batch  = Array.from({length:count},(_,i)=>({
+      id:    Date.now()+i,
+      startX: 8 + Math.random()*84,
+      delay:  i*0.35 + Math.random()*0.15,
+      color:  COLORS[Math.floor(Math.random()*COLORS.length)],
+      scale:  0.82 + Math.random()*0.38,
+    }));
+    setBalloons(b=>[...b,...batch]);
+    setTimeout(()=>setBalloons(b=>b.filter(x=>!batch.find(n=>n.id===x.id))), 5500);
+  };
+  return (
+    <BalloonCtx.Provider value={launch}>
+      {children}
+      {balloons.map(b=>(
+        <Balloon key={b.id} startX={b.startX} delay={b.delay} color={b.color} scale={b.scale}/>
+      ))}
+    </BalloonCtx.Provider>
+  );
+}
+
 Object.assign(window, { Icon, StatusBadge, ToastHost, useToast, Modal, SideModal, Sidebar, Topbar, ConfBadge,
-  useState, useEffect, useRef, useMemo });
+  BalloonHost, useBalloon, useState, useEffect, useRef, useMemo });
