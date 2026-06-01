@@ -138,7 +138,16 @@ function CreateProjectModal({ onClose, onCreate }){
     {id:'industrial', th:'โรงงานอุตสาหกรรม', ic:'layers'},
     {id:'infrastructure', th:'โครงสร้างพื้นฐาน', ic:'ruler'},
   ];
+  // ประเภทงานที่ต้องการ — UI เท่านั้น (ยังไม่ลิงก์หลังบ้าน) ไว้ให้ต่อยอดภายหลัง
+  const WORKTYPES = [
+    {id:'structure', th:'งานโครงสร้าง', ic:'layers'},
+    {id:'architecture', th:'งานสถาปัตยกรรม', ic:'ruler'},
+    {id:'electrical', th:'งานไฟฟ้า', ic:'bolt'},
+    {id:'mechanical', th:'งานเครื่องกล', ic:'cog'},
+  ];
   const [f,setF] = useState({ name:'', location:'', region:'กทม', type:'commercial', floors:1, area:'' });
+  const [work,setWork] = useState(['structure']);   // เลือกได้หลายอย่าง (default: งานโครงสร้าง)
+  const toggleWork = id => setWork(w => w.includes(id) ? w.filter(x=>x!==id) : [...w,id]);
   const [nda,setNda] = useState(false);
   const set = (k,v)=>setF(s=>({...s,[k]:v}));
   const ok = f.name.trim() && f.location.trim() && f.area && nda;
@@ -191,6 +200,18 @@ function CreateProjectModal({ onClose, onCreate }){
           <input className="inp mono" type="number" min="1" value={f.floors} onChange={e=>set('floors',e.target.value)}/></div>
         <div className="field"><label>พื้นที่รวมโดยประมาณ <span className="hintl">(ตร.ม.)</span></label>
           <input className="inp mono" type="number" min="0" value={f.area} placeholder="0" onChange={e=>set('area',e.target.value)}/></div>
+      </div>
+      <div className="field">
+        <label>ประเภทงานที่ต้องการ <span className="hintl">(เลือกได้หลายรายการ)</span></label>
+        <div className="opt-grid cols2" style={{gridTemplateColumns:'repeat(2,1fr)',gap:10}}>
+          {WORKTYPES.map(w=>(
+            <div key={w.id} className={'opt '+(work.includes(w.id)?'sel':'')} style={{padding:13}} onClick={()=>toggleWork(w.id)}>
+              <div className="opt-ic" style={{width:34,height:34,flex:'0 0 34px'}}><Icon name={w.ic} size={17}/></div>
+              <div className="opt-body"><div className="opt-t" style={{fontSize:14}}>{w.th}</div></div>
+              <div className="opt-check round" style={{width:20,height:20}}><Icon name="check" size={12}/></div>
+            </div>
+          ))}
+        </div>
       </div>
       {/* NDA */}
       <div onClick={()=>setNda(v=>!v)} style={{display:'flex',gap:12,alignItems:'flex-start',padding:14,borderRadius:12,
