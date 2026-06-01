@@ -235,12 +235,35 @@ function generateBOQExcel(project, boqData) {
     ];
   });
   const r_total = sumRow(r_data, [2,4,5,6,7,8,9]);
-  buildAndStyle(wb, '07_หลังคา', [
+  // member breakdown (อกไก่/อะเส/จันทัน/ขื่อ/แป)
+  const memberRows = sh.roof_members || [];
+  const rm_header = ['ชนิดสมาชิก','หน้าตัด','น.น./ม. (กก./ม.)','ยาวต่อท่อน (m)','จำนวน (ท่อน/แนว)','ความยาวรวม (m)','น้ำหนักรวม (kg)','หมายเหตุ'];
+  const rm_data = memberRows.map(m => {
+    const uw = Number(m.unit_weight)||0;
+    const totLen = Number(m.total_length_m) || (Number(m.length_each_m||0) * Number(m.count||0));
+    const totWt = Number(m.total_weight_kg) || (totLen * uw);
+    return [
+      m.type||'-', m.section||'-', n2(uw),
+      n2(m.length_each_m||0), m.count||0,
+      n2(totLen), n2(totWt), m.notes||''
+    ];
+  });
+  const rm_total = sumRow(rm_data, [5,6]);
+  const roofLayout = [
     T('Sheet 07 — หลังคา (โครงเหล็กรูปพรรณ)'),
     BL(),
     H(r_header), ...r_data.map(D),
     TT(['รวม','',r_total[2],'',r_total[4],r_total[5],r_total[6],r_total[7],r_total[8],r_total[9],'']),
-  ], [8,20,12,8,12,12,12,10,12,12,20]);
+  ];
+  if (rm_data.length > 0) {
+    roofLayout.push(
+      BL(),
+      T('รายละเอียดสมาชิกโครงหลังคา (คำนวณความยาวจริงตามแบบ)'),
+      H(rm_header), ...rm_data.map(D),
+      TT(['รวม','','','','',n2(rm_total[5]),n2(rm_total[6]),''])
+    );
+  }
+  buildAndStyle(wb, '07_หลังคา', roofLayout, [8,20,12,8,12,12,12,10,12,12,20]);
 
   // ── Sheet 08: พื้นสำเร็จ ─────────────────────────────────────
   const precastRows = sh.slabs_precast || itemsToSheetRows(items, 'พื้น', 'สำเร็จ');
