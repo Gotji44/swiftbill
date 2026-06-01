@@ -98,6 +98,7 @@ function App(){
   const [boqData,setBoqData] = useState(null);       // ข้อมูล BOQ จาก Claude
   const [uploadData,setUploadData] = useState(null); // {storagePath, fileName} จาก UploadScreen
   const [isAnalyzing,setIsAnalyzing] = useState(false); // ล็อก sidebar ระหว่าง AI วิเคราะห์
+  const [isUploading,setIsUploading] = useState(false); // ล็อก sidebar ระหว่างอัปโหลดไฟล์
 
   // ตรวจสอบ session เมื่อเปิดแอป
   useEffect(()=>{
@@ -275,12 +276,13 @@ function App(){
     <div className="app">
       <Sidebar screen={screen} project={['upload','scope','results','pricing'].includes(screen)?project:null}
         collapsed={sideCollapsed} onToggle={()=>setSideCollapsed(c=>!c)}
-        onNav={nav} onExit={backToDash} user={user} locked={isAnalyzing}/>
+        onNav={nav} onExit={backToDash} user={user} locked={isAnalyzing || isUploading}/>
       <div className="main">
         <Topbar crumbs={crumbsFor()} onToggleSidebar={()=>setSideCollapsed(c=>!c)} user={user}/>
         {screen==='dashboard' && <Dashboard projects={projects} onOpen={openProject} onCreate={createProject} onDelete={deleteProject}/>}
         {screen==='upload' && <UploadScreen project={project}
-          onComplete={(data)=>{ setUploadData(data); setProjectStatus(project,'quoted'); setScreen('scope'); }}/>}
+          onUploadingChange={setIsUploading}
+          onComplete={(data)=>{ setIsUploading(false); setUploadData(data); setProjectStatus(project,'quoted'); setScreen('scope'); }}/>}
         {screen==='scope' && <ScopeScreen project={project} uploadData={uploadData}
           onAnalyzingChange={(analyzing)=>{ setIsAnalyzing(analyzing); if(analyzing) setProjectStatus(project,'extracting'); }}
           onConfirm={(boqData, withPrice, analyzeSeconds)=>{ setIsAnalyzing(false); setBoqData(boqData);

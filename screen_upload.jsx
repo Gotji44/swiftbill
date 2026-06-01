@@ -2,7 +2,7 @@
    Flow ใหม่: อัปโหลด → Scope → AI วิเคราะห์ → Results
    ขั้นตอนนี้ทำแค่ upload ไฟล์ไปยัง Supabase Storage แล้วส่ง storagePath ไปหน้า Scope
 ================================================================== */
-function UploadScreen({ project, onComplete }){
+function UploadScreen({ project, onComplete, onUploadingChange }){
   const toast = useToast();
   const [files,setFiles] = useState([]);
   const [drag,setDrag] = useState(false);
@@ -57,6 +57,7 @@ function UploadScreen({ project, onComplete }){
   // อัปโหลดไฟล์ → Supabase Storage แล้วไปหน้า Scope
   const handleUpload = async () => {
     setUploading(true);
+    onUploadingChange && onUploadingChange(true);   // ล็อก sidebar กันสลับหน้ากลางคัน
     setError('');
 
     try {
@@ -138,6 +139,7 @@ function UploadScreen({ project, onComplete }){
     } catch(err) {
       setError(err.message || 'เกิดข้อผิดพลาด กรุณาลองใหม่');
       setUploading(false);
+      onUploadingChange && onUploadingChange(false);   // ปลดล็อก sidebar เมื่ออัปโหลดล้มเหลว
       setUploadStep(0);
     }
   };
