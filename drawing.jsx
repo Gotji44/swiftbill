@@ -126,14 +126,7 @@ function DrawingPlan({ page, highlightCode, highlightCat }){
         </g>
       ))}
 
-      {/* ── highlight: คาน (วาดก่อน beam จริงเพื่อให้ glow อยู่ด้านหลัง) ── */}
-      {hl?.type==='beam' && hl.segs.map((s,i)=>(
-        <line key={'hb'+i} className="svg-hl"
-          x1={s.x1} y1={s.y1} x2={s.x2} y2={s.y2}
-          stroke={OG} strokeWidth="12" strokeLinecap="round" filter="url(#og-glow)"/>
-      ))}
-
-      {/* ── beams (ทับ beam-highlight) ── */}
+      {/* ── beams ── */}
       {ry.map((y,ri)=> cols.slice(0,-1).map((x,ci)=>(
         <line key={'bh'+ri+ci} x1={x} y1={y} x2={cols[ci+1]} y2={y} stroke="#7c8aa3" strokeWidth="3"/>
       )))}
@@ -158,6 +151,13 @@ function DrawingPlan({ page, highlightCode, highlightCat }){
         <circle key={'hf'+i} className="svg-hl"
           cx={p.x} cy={p.y} r="24"
           fill={OGA} stroke={OG} strokeWidth="2.5" filter="url(#og-glow)"/>
+      ))}
+
+      {/* ── highlight: คาน (วาดทับ beam จริงเพื่อให้เห็นชัด) ── */}
+      {hl?.type==='beam' && hl.segs.map((s,i)=>(
+        <line key={'hb'+i} className="svg-hl"
+          x1={s.x1} y1={s.y1} x2={s.x2} y2={s.y2}
+          stroke={OG} strokeWidth="12" strokeLinecap="round" filter="url(#og-glow)"/>
       ))}
 
       {/* ── code badge ที่มุมซ้ายบนของ drawing เมื่อมี highlight ── */}
