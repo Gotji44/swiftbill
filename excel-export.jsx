@@ -264,19 +264,20 @@ function generateBOQExcel(project, boqData) {
 
   // ── Sheet 09: พื้นหล่อในที่ ───────────────────────────────────
   const cipRows = sh.slabs_cip || itemsToSheetRows(items, 'พื้น', 'หล่อ');
-  const sc_header = ['รหัส','ตำแหน่ง','B (m)','L (m)','T (m)','จำนวน','เหล็กเสริม','ปริมาตรรวม (ม³)','หมายเหตุ'];
+  const sc_header = ['รหัส','ตำแหน่ง','ตำแหน่ง (กริด)','B (m)','L (m)','T (m)','จำนวน','เหล็กเสริมขนานด้านสั้น','เหล็กเสริมขนานด้านยาว','ปริมาตรรวม (ม³)','หมายเหตุ'];
   const sc_data = cipRows.map(r => [
-    r.code||'-', r.location||r.name||'-',
+    r.code||'-', r.location||r.name||'-', r.grid||r.gridline||'-',
     n2(r.B||0), n2(r.L||0), n2(r.T||0), r.count||r.qty||1,
-    r.rebar||'-', n2(r.concrete_m3||r.volume||0), r.notes||''
+    r.rebar_short||r.rebar||'-', r.rebar_long||r.rebar||'-',
+    n2(r.concrete_m3||r.volume||0), r.notes||''
   ]);
-  const sc_total = sc_data.reduce((s,r)=>s+(Number(r[7])||0),0);
+  const sc_total = sc_data.reduce((s,r)=>s+(Number(r[9])||0),0);
   buildAndStyle(wb, '09_พื้นหล่อในที่', [
     T('Sheet 09 — พื้นหล่อในที่ (CIP)'),
     BL(),
     H(sc_header), ...sc_data.map(D),
-    TT(['รวม','','','','','','',n2(sc_total),'']),
-  ], [8,20,6,6,6,7,16,12,20]);
+    TT(['รวม','','','','','','','','',n2(sc_total),'']),
+  ], [8,18,12,6,6,6,7,16,16,12,18]);
 
   // ── Sheet 11: สรุปรวม ─────────────────────────────────────────
   const totals = calcTotals(footingRows, colRows, beamRows, roofRows, precastRows, cipRows, items);
