@@ -81,9 +81,9 @@ function ScopeScreen({ project, uploadData, onConfirm, onAnalyzingChange }){
   const cancelledRef = useRef(false);          // true = ผู้ใช้กดยกเลิกเอง (ไม่ใช่ timeout)
   const pollCancelRef = useRef(null);          // ฟังก์ชันยกเลิก poll ทันที (set ระหว่าง poll phase)
 
-  // CLIENT-SIDE TIMEOUT = 125 วิ (Supabase wall-clock ~150s + buffer)
-  // ป้องกัน fetch ค้างตลอดไปเมื่อ server ไม่ตอบ
-  const CLIENT_TIMEOUT = 125_000;
+  // CLIENT-SIDE TIMEOUT = 45 วิ สำหรับขั้น "ส่งแบบ/สร้าง job" (async path ตอบ ~2s)
+  // ถ้าค้างเกินนี้ = server ไม่ตอบ → fail เร็วพร้อมข้อความ แทนที่จะค้างเงียบ
+  const CLIENT_TIMEOUT = 45_000;
   const POLL_MAX_WAIT_MS = 8*60*1000;          // รอ poll สูงสุด 8 นาที แล้วหยุดแน่นอน
   const POLL_QUERY_TIMEOUT = 8_000;            // ตัด query แต่ละรอบที่ค้างเกิน 8 วิ
 
@@ -107,6 +107,12 @@ function ScopeScreen({ project, uploadData, onConfirm, onAnalyzingChange }){
 
   // ── AI วิเคราะห์หลังอนุมัติ scope ──────────────────────────
   const startAnalyze = async () => {
+    // เคลียร์งานเก่าที่อาจค้างก่อนเริ่มรอบใหม่ (กันรีทรายแล้ว poll/fetch เดิมค้างทับ)
+    abortRef.current?.abort();
+    pollCancelRef.current?.();
+    pollCancelRef.current = null;
+    abortRef.current = null;
+
     setPhase('analyzing');
     setAnalyzeErr(null);
     setAnalyzeStep(0);
@@ -134,7 +140,12 @@ function ScopeScreen({ project, uploadData, onConfirm, onAnalyzingChange }){
       setAnalyzeMsg('กำลังส่งแบบให้ Claude AI...');
       await new Promise(r=>setTimeout(r,300));
 
-      const { data:{ session } } = await window.supabase.auth.getSession();
+      let { data:{ session } } = await window.supabase.auth.getSession();
+      // รีเฟรช token ถ้าใกล้หมดอายุ (กันรอบวิเคราะห์ที่นานทำให้ JWT หมดอายุ → 401)
+      if(session?.expires_at && session.expires_at * 1000 < Date.now() + 120000){
+        const r = await window.supabase.auth.refreshSession();
+        session = r.data?.session || session;
+      }
       if(!session?.access_token) throw new Error('session expired — ไม่พบเซสชันผู้ใช้');
       const selectedScope = scope.map(id => SCOPE_CAT[id]).filter(Boolean);
 
