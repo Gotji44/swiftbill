@@ -249,6 +249,13 @@ function generateBOQExcel(project, boqData) {
     ];
   });
   const rm_total = sumRow(rm_data, [5,6]);
+  // น้ำหนักโครงหลังคารวม — ใช้จาก member breakdown ถ้ามี ไม่งั้นใช้ summary
+  const roofSteelKg = n2(rm_data.length > 0 ? (Number(rm_total[6])||0) : (Number(r_total[8])||0));
+  // label เหล็กเสริม topping จากข้อมูลจริง
+  const sp_rebarLabel = (() => {
+    const labels = precastRows.map(r => r.topping_rebar||r.wiremesh||'').filter(Boolean);
+    return labels.length ? [...new Set(labels)].join(', ') : 'Wire Mesh #4@0.20';
+  })();
   const roofLayout = [
     T('Sheet 07 — หลังคา (โครงเหล็กรูปพรรณ)'),
     BL(),
@@ -317,23 +324,24 @@ function generateBOQExcel(project, boqData) {
     D(['3. คอนกรีตโครงสร้าง','ฐานราก',               n2(totals.c_footing), 'ม³','']),
     D(['','เสา',                                        n2(totals.c_column),  'ม³','']),
     D(['','คาน',                                        n2(totals.c_beam),    'ม³','']),
-    D(['','พื้นหล่อในที่',                              n2(totals.c_slab_cip),'ม³','']),
-    D(['','Topping พื้นสำเร็จ',                        n2(sp_totalArea*0.05),'ม³','หนา 5 ซม.']),
-    TT(['','รวมคอนกรีตทั้งหมด',                         n2(totals.c_total),   'ม³','']),
-    D(['4. เหล็กเสริม','ฐานราก',                      n2(totals.r_footing), 'kg','']),
-    D(['','เสา',                                        n2(totals.r_column),  'kg','รวม lap/hook แล้ว']),
-    D(['','คาน',                                        n2(totals.r_beam),    'kg','รวม lap/hook แล้ว']),
-    TT(['','รวมเหล็กเสริม',                             n2(totals.r_total),   'kg','']),
-    D(['5. พื้น','พื้นสำเร็จรูป (Solid Plank)',        n2(sp_totalArea),     'ม²','']),
+    D(['','พื้นหล่อในที่',                              n2(totals.c_slab_cip),    'ม³','']),
+    D(['','Topping พื้นสำเร็จ',                        n2(totals.c_slab_topping),'ม³','หนา '+n2((precastRows[0]?.topping_t||0.05)*100)+' ซม.']),
+    TT(['','รวมคอนกรีตทั้งหมด (รวม Topping)',          n2(totals.c_total),        'ม³','']),
+    D(['4. เหล็กเสริม','ฐานราก',                      n2(totals.r_footing),     'kg','']),
+    D(['','เสา',                                        n2(totals.r_column),       'kg','รวม lap/hook แล้ว']),
+    D(['','คาน',                                        n2(totals.r_beam),         'kg','รวม lap/hook แล้ว']),
+    TT(['','รวมเหล็กเสริม',                             n2(totals.r_total),        'kg','']),
+    D(['5. พื้น','พื้นสำเร็จรูป (Solid Plank)',        n2(sp_totalArea),          'ม²','']),
     D(['','พื้นหล่อในที่',                              n2(totals.c_slab_cip/0.12||0),'ม²','ประมาณการ']),
-    D(['','Wire Mesh #4@0.20',                          n2(sp_totalArea),     'ม²','']),
+    D(['','เหล็กเสริม Topping',                        n2(sp_totalArea),           'ม²',sp_rebarLabel]),
     D(['6. ไม้แบบ','ฐานราก',                          n2(totals.f_footing), 'ม²','']),
     D(['','เสา',                                        n2(totals.f_column),  'ม²','']),
     D(['','คาน',                                        n2(totals.f_beam),    'ม²','']),
     TT(['','รวมไม้แบบทั้งหมด',                          n2(totals.f_total),   'ม²','']),
     D(['7. หลังคา','พื้นที่ฉายราบ',                   n2(r_total[2]||0),    'ม²','']),
-    D(['','พื้นที่จริง',                               n2(r_total[4]||0),    'ม²','']),
-    D(['','น้ำหนักโครงเหล็ก',                         n2(r_total[8]||0),    'kg','']),
+    D(['','พื้นที่จริง (ลาดเอียง)',                   n2(r_total[4]||0),    'ม²','']),
+    D(['','น้ำหนักโครงเหล็กรวม',                     n2(roofSteelKg),      'kg', rm_data.length>0?'รวมจาก '+rm_data.length+' ชนิดสมาชิก':'จาก schedule']),
+    ...(rm_data.length>0 ? rm_data.map(m=>D(['','  - '+m[0]+' ('+m[1]+')', n2(Number(m[6])), 'kg', 'ยาว '+m[5]+' ม.'])) : []),
     D(['','Sag Rod',                                    r_total[7]||0,        'เส้น','']),
     BL(),
     SB('หมายเหตุ'),
@@ -353,20 +361,29 @@ function generateBOQExcel(project, boqData) {
     D(['ก.','ทรายอัดแน่นใต้ Lean',  n2(totals.sand),            'ม³','5%', wasted(totals.sand,5),'']),
     D(['',  'ดินถมกลับ (ประมาณ)',    n2(totals.excavation*0.3),  'ม³','10%',wasted(totals.excavation*0.3,10),'']),
     D(['ข.','Lean Concrete 1:3:5',   n2(totals.lean),            'ม³','5%', wasted(totals.lean,5),'']),
-    D(['',  "คอนกรีตผสมเสร็จ fc'=240 ksc",n2(totals.c_total),  'ม³','5%', wasted(totals.c_total,5),'ฐานราก+เสา+คาน']),
-    D(['',  "คอนกรีตผสมเสร็จ fc'=210 ksc",n2(sp_totalArea*0.05),'ม³','5%',wasted(sp_totalArea*0.05,5),'Topping พื้นสำเร็จ']),
-    D(['ค.','เหล็กข้ออ้อย SD40 (รวม)', n2(totals.r_total),      'kg','7%', wasted(totals.r_total,7),'DB10-DB25']),
-    D(['',  'เหล็กกลม SR24 (ปลอก)',    n2(totals.r_total*0.15),  'kg','7%', wasted(totals.r_total*0.15,7),'RB6, RB9 ~15%']),
-    D(['',  'ลวดผูก #18',              n2(totals.r_total*0.01),  'kg','10%',wasted(totals.r_total*0.01,10),'~1% ของเหล็ก']),
-    D(['ง.','ไม้แบบเรียบ (ไม้อัด)',    n2(totals.f_total),        'ม²','10%',wasted(totals.f_total,10),'']),
-    D(['',  'ไม้คร่าว 2"×3"',          n2(totals.f_total*1.2),   'เมตร','10%',wasted(totals.f_total*1.2,10),'~1.2 ม./ม²']),
-    D(['',  'ตะปู',                    n2(totals.f_total*0.3),   'kg','10%',wasted(totals.f_total*0.3,10),'~0.3 kg/ม²']),
-    D(['จ.','Solid Plank',             n2(sp_totalArea),          'ม²','3%', wasted(sp_totalArea,3),'']),
-    D(['',  'Wire Mesh #4@0.20',       n2(sp_totalArea),          'ม²','5%', wasted(sp_totalArea,5),'']),
-    D(['ฉ.','โครงเหล็กรูปพรรณ',       n2(r_total[8]||0),         'kg','5%', wasted(r_total[8]||0,5),'จันทัน+แป']),
+    D(['',  "คอนกรีตผสมเสร็จ fc'=240 ksc", n2(totals.c_footing+totals.c_column+totals.c_beam+totals.c_slab_cip), 'ม³','5%', wasted(totals.c_footing+totals.c_column+totals.c_beam+totals.c_slab_cip,5),'ฐานราก+เสา+คาน+พื้นหล่อ']),
+    D(['',  "คอนกรีตผสมเสร็จ fc'"+(precastRows[0]?.fc||210)+" ksc", n2(totals.c_slab_topping), 'ม³','5%', wasted(totals.c_slab_topping,5),'Topping พื้นสำเร็จ หนา '+n2((precastRows[0]?.topping_t||0.05)*100)+' ซม.']),
+    D(['ค.','เหล็กข้ออ้อย SD40 (รวม)', n2(totals.r_total),       'kg','7%', wasted(totals.r_total,7),'DB10-DB25']),
+    D(['',  'เหล็กกลม SR24 (ปลอก)',    n2(totals.r_total*0.15),   'kg','7%', wasted(totals.r_total*0.15,7),'RB6, RB9 ~15%']),
+    D(['',  'ลวดผูก #18',              n2(totals.r_total*0.01),   'kg','10%',wasted(totals.r_total*0.01,10),'~1% ของเหล็ก']),
+    D(['ง.','ไม้แบบเรียบ (ไม้อัด)',    n2(totals.f_total),         'ม²','10%',wasted(totals.f_total,10),'']),
+    D(['',  'ไม้คร่าว 2"×3"',          n2(totals.f_total*1.2),    'เมตร','10%',wasted(totals.f_total*1.2,10),'~1.2 ม./ม²']),
+    D(['',  'ตะปู',                    n2(totals.f_total*0.3),    'kg','10%',wasted(totals.f_total*0.3,10),'~0.3 kg/ม²']),
+    D(['จ.','Solid Plank',             n2(sp_totalArea),           'ม²','3%', wasted(sp_totalArea,3),'']),
+    D(['',  sp_rebarLabel+' (Topping)',n2(sp_totalArea),           'ม²','5%', wasted(sp_totalArea,5),'เสริม Topping']),
+    ...(rm_data.length > 0
+      ? rm_data.map((m,i) => D([
+          i===0 ? 'ฉ.' : '',
+          'โครงเหล็ก '+m[0]+' ('+m[1]+')',
+          n2(Number(m[6])), 'kg', '5%', wasted(Number(m[6]),5),
+          'ยาวรวม '+m[5]+' ม.'
+        ]))
+      : [D(['ฉ.','โครงเหล็กรูปพรรณ', n2(roofSteelKg),'kg','5%',wasted(roofSteelKg,5),'จันทัน+แป+อกไก่+อะเส+ขื่อ'])]),
     D(['',  'Sag Rod',                 r_total[7]||0,             'เส้น','10%',Math.ceil((r_total[7]||0)*1.1),'']),
     BL(),
-    NOTE('Wastage: คอนกรีต +5%, เหล็ก +7%, ไม้แบบ +10%, พื้นสำเร็จ +3%'),
+    NOTE('Wastage: คอนกรีต +5%, เหล็กเสริม +7%, ไม้แบบ +10%, พื้นสำเร็จ +3%, โครงเหล็กหลังคา +5%'),
+    NOTE('คอนกรีต fc\'=240: ฐานราก+เสา+คาน+พื้นหล่อ | fc\'='+((precastRows[0]?.fc||210))+': Topping พื้นสำเร็จ'),
+    NOTE('โครงเหล็กหลังคา: แยกรายสมาชิก ดูรายละเอียดเพิ่มเติมที่ Sheet 07'),
   ], [5,28,12,8,8,14,20]);
 
   // ── Save ─────────────────────────────────────────────────────
@@ -446,8 +463,9 @@ function calcTotals(footings, columns, beams, roof, precast, cip, items) {
     c_footing:  n2(sumField(fSums,'concrete_m3') || getVol('ฐานราก')),
     c_column:   n2(columns.reduce((s,r)=>s+(Number(r.concrete_m3)||calcColVol(r)),0) || getVol('เสา')),
     c_beam:     n2(beams.reduce((s,r)=>s+(Number(r.concrete_m3)||Number(r.volume)||0),0) || getVol('คาน')),
-    c_slab_cip: n2(cip.reduce((s,r)=>s+(Number(r.concrete_m3)||Number(r.volume)||0),0)),
-    get c_total(){ return n2(this.c_footing+this.c_column+this.c_beam+this.c_slab_cip); },
+    c_slab_cip:     n2(cip.reduce((s,r)=>s+(Number(r.concrete_m3)||Number(r.volume)||0),0)),
+    c_slab_topping: n2(precast.reduce((s,r)=>s+(Number(r.area_m2)||0)*(Number(r.topping_t)||0.05),0)),
+    get c_total(){ return n2(this.c_footing+this.c_column+this.c_beam+this.c_slab_cip+this.c_slab_topping); },
     r_footing:  n2(sumField(fSums,'rebar_kg')),
     r_column:   n2(columns.reduce((s,r)=>s+(Number(r.rebar_kg)||0),0)),
     r_beam:     n2(beams.reduce((s,r)=>s+(Number(r.rebar_kg)||0),0)),
