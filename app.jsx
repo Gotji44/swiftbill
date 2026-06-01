@@ -191,6 +191,19 @@ function App(){
 
   const createProject = async (p) => {
     try {
+      // กันเซสชันหมดอายุ: รีเฟรช token ก่อน insert ไม่งั้น auth.uid() เป็น null → RLS ปฏิเสธ
+      let { data: { session } } = await window.supabase.auth.getSession();
+      const expSoon = session?.expires_at && (session.expires_at * 1000 < Date.now() + 60000);
+      if(session && expSoon){
+        const r = await window.supabase.auth.refreshSession();
+        session = r.data?.session || null;
+      }
+      if(!session){
+        alert('เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่อีกครั้ง');
+        nav('logout');
+        return;
+      }
+
       // Map fields ให้ตรงกับ Supabase schema
       const projectData = {
         name:          p.name,
