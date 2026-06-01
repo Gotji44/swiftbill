@@ -186,6 +186,8 @@ function ScopeScreen({ project, uploadData, onConfirm, onAnalyzingChange }){
           const pollStart = Date.now();
           let stopped = false;          // กันไม่ให้ settle ซ้ำ
           let pollTimer = null;
+          let consecErr = 0;            // นับ query ที่ล้มต่อเนื่อง (กัน blip ชั่วคราว)
+          const MAX_CONSEC_ERR = 6;     // ล้มติดกัน ~30 วิ ค่อยยอมแพ้ (ไม่เด้งกลับทันทีจาก blip เดียว)
 
           // ปิดงานครั้งเดียว: เคลียร์ timer/watchdog + ปลด cancel ref แล้วค่อย settle
           const finish = (fn, val) => {
@@ -217,16 +219,31 @@ function ScopeScreen({ project, uploadData, onConfirm, onAnalyzingChange }){
                 .abortSignal(AbortSignal.timeout(POLL_QUERY_TIMEOUT))  // กัน query ค้าง
                 .single();
               if(stopped) return;
-              if(qErr){ finish(reject, new Error('ตรวจสถานะ job ไม่สำเร็จ: ' + qErr.message)); return; }
-              if(job?.status === 'done')  { finish(resolve, job.result); return; }
-              if(job?.status === 'error') { finish(reject, new Error(job.error_msg || 'AI ประมวลผลไม่สำเร็จ')); return; }
-              const waited = Math.floor((Date.now()-pollStart)/1000);
-              const idx = Math.min(Math.floor(waited/STAGE_SECS), stages.length-1);
-              setAnalyzeMsg(stages[idx]);
+              if(qErr){
+                // query ล้มชั่วคราว (เน็ตกระตุก/timeout) → ไม่ล้มทั้งงาน รอลองรอบถัดไป
+                consecErr++;
+                if(consecErr >= MAX_CONSEC_ERR){
+                  finish(reject, new Error('ตรวจสถานะ job ไม่สำเร็จ: ' + qErr.message));
+                  return;
+                }
+                console.warn(`poll query error (${consecErr}/${MAX_CONSEC_ERR}) จะลองใหม่:`, qErr.message);
+              } else {
+                consecErr = 0;   // อ่านสำเร็จ → รีเซ็ตตัวนับ
+                if(job?.status === 'done')  { finish(resolve, job.result); return; }
+                if(job?.status === 'error') { finish(reject, new Error(job.error_msg || 'AI ประมวลผลไม่สำเร็จ')); return; }
+                const waited = Math.floor((Date.now()-pollStart)/1000);
+                const idx = Math.min(Math.floor(waited/STAGE_SECS), stages.length-1);
+                setAnalyzeMsg(stages[idx]);
+              }
             } catch(e){
               // query รอบนี้ค้าง/พลาด → ไม่ล้มทั้งกระบวนการ ปล่อยให้รอบถัดไปลองใหม่ จน watchdog ตัดเอง
               if(stopped) return;
-              console.warn('poll iteration failed (จะลองใหม่):', e);
+              consecErr++;
+              if(consecErr >= MAX_CONSEC_ERR){
+                finish(reject, new Error('ตรวจสถานะ job ไม่สำเร็จซ้ำหลายครั้ง — ' + (e?.message || 'network')));
+                return;
+              }
+              console.warn(`poll iteration failed (${consecErr}/${MAX_CONSEC_ERR}) จะลองใหม่:`, e);
             }
             // นัดรอบถัดไปเสมอ (ตราบใดยังไม่ stopped) — watchdog เป็นตัวคุมเพดานเวลา
             pollTimer = setTimeout(poll, POLL_INTERVAL);
@@ -235,8 +252,10 @@ function ScopeScreen({ project, uploadData, onConfirm, onAnalyzingChange }){
         });
 
         setAnalyzeStep(3);
+        const warnA = boqData?.summary?._warning;
         setAnalyzeMsg(`พบ ${boqData?.items?.length || 0} รายการ`);
-        toast('วิเคราะห์แบบสำเร็จ ✓');
+        if(warnA) console.warn('analysis warning:', warnA);
+        toast(warnA ? '⚠️ วิเคราะห์เสร็จ แต่ข้อมูลบางส่วนอาจไม่ครบ — ดูคำแนะนำในผลลัพธ์' : 'วิเคราะห์แบบสำเร็จ ✓');
         onAnalyzingChange && onAnalyzingChange(false);
         onConfirm(boqData, withPrice);
         return; // ออกจาก try block
@@ -245,9 +264,11 @@ function ScopeScreen({ project, uploadData, onConfirm, onAnalyzingChange }){
       // ── Sync fallback path (local dev / runtime เก่า) ──────────
       const boqData = submitResult.data;
       setAnalyzeStep(3);
+      const warnS = boqData?.summary?._warning;
       setAnalyzeMsg(`พบ ${boqData?.items?.length || 0} รายการ`);
       await new Promise(r=>setTimeout(r,700));
-      toast('วิเคราะห์แบบสำเร็จ ✓');
+      if(warnS) console.warn('analysis warning:', warnS);
+      toast(warnS ? '⚠️ วิเคราะห์เสร็จ แต่ข้อมูลบางส่วนอาจไม่ครบ — ดูคำแนะนำในผลลัพธ์' : 'วิเคราะห์แบบสำเร็จ ✓');
       onAnalyzingChange && onAnalyzingChange(false);
       onConfirm(boqData, withPrice);
 

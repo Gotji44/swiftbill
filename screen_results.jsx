@@ -40,6 +40,9 @@ function ResultsScreen({ project, boqData, onConfirm }){
   const [delId,setDelId] = useState(null);
   const [auditId,setAuditId] = useState(null);
   const [confirmOpen,setConfirmOpen] = useState(false);
+  // เตือนเมื่อ AI ถอดข้อมูลได้ไม่ครบ (ผลลัพธ์ถูกตัดเพราะยาวเกินขีดจำกัด)
+  const partialWarning = boqData?.summary?._warning || null;
+  const [warnOpen,setWarnOpen] = useState(true);
 
   // resizable split
   const splitRef = useRef(null);
@@ -126,6 +129,19 @@ function ResultsScreen({ project, boqData, onConfirm }){
           <button className="btn btn-soft" onClick={()=>setAddOpen(true)}><Icon name="plus" size={16}/> เพิ่มรายการ</button>
         </div>
       </div>
+
+      {/* ── แถบเตือนข้อมูลไม่ครบ (ผลลัพธ์ถูกตัดเพราะแบบยาว/ซับซ้อน) ── */}
+      {partialWarning && warnOpen && (
+        <div style={{padding:'11px 22px',background:'#fffbeb',borderBottom:'1px solid #fcd34d',
+          display:'flex',alignItems:'flex-start',gap:12,fontSize:13,color:'#92400e',lineHeight:1.6}}>
+          <span style={{fontSize:16,flex:'0 0 auto'}}>⚠️</span>
+          <div style={{flex:1}}>
+            <b>ข้อมูลบางส่วนอาจไม่ครบ</b> — {partialWarning}
+          </div>
+          <button className="btn btn-ghost btn-sm" style={{flex:'0 0 auto',color:'#92400e'}}
+            onClick={()=>setWarnOpen(false)}>ปิด</button>
+        </div>
+      )}
 
       <div className="split" ref={splitRef}>
         {/* LEFT: drawing viewer */}
