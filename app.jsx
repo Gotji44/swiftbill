@@ -225,7 +225,7 @@ function App(){
       console.log('Project created successfully:', projectUI);
       setProjects(list=>[projectUI, ...list]);
       toast('สร้างโปรเจกต์สำเร็จ ✓');
-      setTimeout(() => openProject(projectUI), 400);
+      openProject(projectUI);
     } catch(err) {
       console.error('Unexpected error in createProject:', err);
       alert('เกิดข้อผิดพลาด:\n\n' + (err?.message || JSON.stringify(err) || 'Unknown error'));
