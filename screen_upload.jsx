@@ -81,25 +81,53 @@ function UploadScreen({ project, onComplete }){
         || 'drawing.pdf';
       const storagePath = `${Date.now()}_${safeName}`;
 
-      // Step 2: อัปโหลด (ใช้ onUploadProgress เพื่อแสดง progress จริง)
+      // Step 2: อัปโหลด (ใช้ XHR เพื่อ progress จริง — fetch() ไม่รองรับ upload progress)
       const fileMB = pdfFile.raw.size / 1048576;
       setTotalMB(fileMB);
       setUploadPercent(0);
       setUploadedMB(0);
       setUploadStep(2);
 
-      const { error: uploadErr } = await window.supabase.storage
-        .from('drawings')
-        .upload(storagePath, pdfFile.raw, {
-          contentType: 'application/pdf',
-          onUploadProgress: (p) => {
-            const pct = Math.round((p.loaded / p.total) * 100);
+      // ดึง session token สำหรับ Authorization header
+      const { data: { session } } = await window.supabase.auth.getSession();
+      const token = session?.access_token;
+      if(!token) throw new Error('ไม่พบ session กรุณา login ใหม่');
+
+      // XHR upload → ได้ progress event จริง
+      await new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+
+        xhr.upload.addEventListener('progress', (e) => {
+          if(e.lengthComputable){
+            const pct = Math.round((e.loaded / e.total) * 100);
             setUploadPercent(pct);
-            setUploadedMB(p.loaded / 1048576);
-          },
+            setUploadedMB(e.loaded / 1048576);
+          }
         });
 
-      if(uploadErr) throw new Error('อัปโหลดไฟล์ไม่สำเร็จ: ' + uploadErr.message);
+        xhr.addEventListener('load', () => {
+          if(xhr.status >= 200 && xhr.status < 300){
+            resolve();
+          } else {
+            try {
+              const res = JSON.parse(xhr.responseText);
+              reject(new Error('อัปโหลดไฟล์ไม่สำเร็จ: ' + (res.error || res.message || xhr.status)));
+            } catch {
+              reject(new Error('อัปโหลดไฟล์ไม่สำเร็จ: HTTP ' + xhr.status));
+            }
+          }
+        });
+
+        xhr.addEventListener('error', () => reject(new Error('อัปโหลดล้มเหลว: ตรวจสอบการเชื่อมต่ออินเทอร์เน็ต')));
+        xhr.addEventListener('abort', () => reject(new Error('อัปโหลดถูกยกเลิก')));
+
+        const SUPABASE_URL = 'https://zokzcjbvjcxfjpcjsegx.supabase.co';
+        xhr.open('POST', `${SUPABASE_URL}/storage/v1/object/drawings/${storagePath}`);
+        xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+        xhr.setRequestHeader('Content-Type', 'application/pdf');
+        xhr.setRequestHeader('x-upsert', 'true');
+        xhr.send(pdfFile.raw);
+      });
 
       setUploadStep(3);
       await new Promise(r=>setTimeout(r,500));
