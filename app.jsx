@@ -178,7 +178,12 @@ function App(){
   const nav = (id) => {
     if(id==='dashboard'){ setScreen('dashboard'); setSideCollapsed(false); return; }
     if(id==='templates'){ setScreen('templates'); return; }
-    if(id==='logout'){ window.supabase.auth.signOut(); return; }
+    if(id==='logout'){
+      window.supabase.auth.signOut();
+      setUser(null); setProjects([]); setProject(null); setBoqData(null);
+      setScreen('dashboard'); setSideCollapsed(false);
+      return;
+    }
     setScreen(id);
   };
 
