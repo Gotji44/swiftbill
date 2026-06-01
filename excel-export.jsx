@@ -1,5 +1,6 @@
-/* ===================== Excel BOQ Export (SheetJS) =====================
-   สร้าง .xlsx ตาม template-schema.md — 8 ชีทหลัก
+/* ===================== Excel BOQ Export (xlsx-js-style) =====================
+   สร้าง .xlsx ตาม template-schema.md — มีสี / เส้นขอบ / หัวตารางเด่น
+   ใช้ xlsx-js-style (fork ของ SheetJS) เพื่อใส่สไตล์เซลล์ได้
    ทุกค่า hardcoded (ไม่มีสูตรในเซลล์) ตามมาตรฐาน template
 ================================================================== */
 
@@ -15,37 +16,147 @@ function generateBOQExcel(project, boqData) {
   const n2 = v => Math.round((Number(v)||0)*100)/100;
   const today = new Date().toLocaleDateString('th-TH',{year:'numeric',month:'long',day:'numeric'});
 
-  function addSheet(wb, name, aoa, colWidths) {
-    const ws = X.utils.aoa_to_sheet(aoa);
-    if (colWidths) ws['!cols'] = colWidths.map(w => ({wch: w}));
+  // ── Palette & cell styles ───────────────────────────────────
+  const thin = c => ({ style:'thin', color:{ rgb:c } });
+  const BORDER = c => ({ top:thin(c), bottom:thin(c), left:thin(c), right:thin(c) });
+  const STYLE = {
+    title:   { font:{bold:true,sz:14,color:{rgb:'FFFFFF'}}, fill:{fgColor:{rgb:'1F4E79'}}, alignment:{horizontal:'left',vertical:'center',indent:1} },
+    sub:     { font:{bold:true,sz:11,color:{rgb:'1F4E79'}}, fill:{fgColor:{rgb:'DDEBF7'}}, alignment:{horizontal:'left',vertical:'center',indent:1} },
+    head:    { font:{bold:true,sz:10,color:{rgb:'FFFFFF'}}, fill:{fgColor:{rgb:'2E75B6'}}, alignment:{horizontal:'center',vertical:'center',wrapText:true}, border:BORDER('9DC3E6') },
+    cell:    { font:{sz:10,color:{rgb:'1A2A3A'}}, alignment:{vertical:'center'}, border:BORDER('BDD7EE') },
+    cellAlt: { font:{sz:10,color:{rgb:'1A2A3A'}}, fill:{fgColor:{rgb:'F2F8FD'}}, alignment:{vertical:'center'}, border:BORDER('BDD7EE') },
+    total:   { font:{bold:true,sz:10,color:{rgb:'7A5C00'}}, fill:{fgColor:{rgb:'FFE699'}}, alignment:{vertical:'center'}, border:BORDER('BF9000') },
+    kvLabel: { font:{bold:true,sz:10,color:{rgb:'334155'}}, alignment:{vertical:'center'} },
+    kvVal:   { font:{sz:10,color:{rgb:'1A2A3A'}}, alignment:{vertical:'center',wrapText:true} },
+    note:    { font:{italic:true,sz:9,color:{rgb:'94A3B8'}}, alignment:{vertical:'center'} },
+  };
+  const RIGHT = { alignment:{horizontal:'right',vertical:'center'} };
+  const numFmt = v => Number.isInteger(v) ? '#,##0' : '#,##0.00';
+
+  // ── Row builders (role-tagged) ──────────────────────────────
+  const T  = (...c) => ({ r:'title', c });
+  const SB = (...c) => ({ r:'sub',   c });
+  const H  = (c)    => ({ r:'head',  c });
+  const D  = (c)    => ({ r:'data',  c });
+  const TT = (c)    => ({ r:'total', c });
+  const KV = (k,v)  => ({ r:'kv',    c:[k,v] });
+  const NOTE = (...c) => ({ r:'note', c });
+  const BL = () => ({ r:'blank', c:[] });
+
+  // ── core: build worksheet + apply styles ────────────────────
+  function setStyle(ws, r, c, style, z) {
+    const addr = X.utils.encode_cell({ r, c });
+    if (!ws[addr]) ws[addr] = { t:'s', v:'' };
+    ws[addr].s = style;
+    if (z) ws[addr].z = z;
+  }
+  function ensureRow(ws, r, ncol) {
+    for (let c = 0; c < ncol; c++) {
+      const addr = X.utils.encode_cell({ r, c });
+      if (!ws[addr]) ws[addr] = { t:'s', v:'' };
+    }
+    const range = X.utils.decode_range(ws['!ref']);
+    if (r > range.e.r) range.e.r = r;
+    if (ncol - 1 > range.e.c) range.e.c = ncol - 1;
+    ws['!ref'] = X.utils.encode_range(range);
+  }
+
+  function buildAndStyle(wb, name, rows, colWidths) {
+    const ncol = colWidths.length;
+    const aoa  = rows.map(row => row.r === 'blank' ? [] : row.c);
+    const ws   = X.utils.aoa_to_sheet(aoa);
+    ws['!cols'] = colWidths.map(w => ({ wch:w }));
+
+    const merges = [];
+    const rowHeights = [];
+    let zebra = 0;
+
+    rows.forEach((row, ri) => {
+      const role = row.r;
+      if (role === 'head') zebra = 0;
+
+      if (role === 'blank') { rowHeights[ri] = { hpt:6 }; return; }
+
+      if (role === 'title') {
+        merges.push({ s:{r:ri,c:0}, e:{r:ri,c:ncol-1} });
+        rowHeights[ri] = { hpt:26 };
+        ensureRow(ws, ri, ncol);
+        for (let c=0;c<ncol;c++) setStyle(ws, ri, c, STYLE.title);
+      }
+      else if (role === 'sub') {
+        merges.push({ s:{r:ri,c:0}, e:{r:ri,c:ncol-1} });
+        rowHeights[ri] = { hpt:18 };
+        ensureRow(ws, ri, ncol);
+        for (let c=0;c<ncol;c++) setStyle(ws, ri, c, STYLE.sub);
+      }
+      else if (role === 'head') {
+        rowHeights[ri] = { hpt:30 };
+        ensureRow(ws, ri, ncol);
+        for (let c=0;c<ncol;c++) setStyle(ws, ri, c, STYLE.head);
+      }
+      else if (role === 'data') {
+        const base = (zebra % 2 === 1) ? STYLE.cellAlt : STYLE.cell;
+        zebra++;
+        ensureRow(ws, ri, ncol);
+        for (let c=0;c<ncol;c++) {
+          const v = row.c[c];
+          if (typeof v === 'number') setStyle(ws, ri, c, {...base, ...RIGHT}, numFmt(v));
+          else setStyle(ws, ri, c, base);
+        }
+      }
+      else if (role === 'total') {
+        rowHeights[ri] = { hpt:20 };
+        ensureRow(ws, ri, ncol);
+        for (let c=0;c<ncol;c++) {
+          const v = row.c[c];
+          if (typeof v === 'number') setStyle(ws, ri, c, {...STYLE.total, ...RIGHT}, numFmt(v));
+          else setStyle(ws, ri, c, STYLE.total);
+        }
+      }
+      else if (role === 'kv') {
+        setStyle(ws, ri, 0, STYLE.kvLabel);
+        setStyle(ws, ri, 1, STYLE.kvVal);
+      }
+      else if (role === 'note') {
+        merges.push({ s:{r:ri,c:0}, e:{r:ri,c:ncol-1} });
+        ensureRow(ws, ri, ncol);
+        for (let c=0;c<ncol;c++) setStyle(ws, ri, c, STYLE.note);
+      }
+    });
+
+    if (merges.length) ws['!merges'] = (ws['!merges']||[]).concat(merges);
+    ws['!rows'] = rowHeights;
     X.utils.book_append_sheet(wb, ws, name);
     return ws;
   }
 
   // ── Sheet 01: ข้อมูลโครงการ ───────────────────────────────────
-  addSheet(wb, '01_ข้อมูลโครงการ', [
-    ['ใบถอดปริมาณงานก่อสร้าง (BOQ)','','',''],
-    ['สร้างโดย SwiftBill + Claude AI','','',''],
-    [],
-    ['ชื่อโครงการ',      project.name || '-'],
-    ['ที่ตั้งโครงการ',   project.location || '-'],
-    ['เจ้าของโครงการ',   '-'],
-    ['ผู้ออกแบบ',        '-'],
-    ['ผู้ควบคุมงาน',     '-'],
-    ['ผู้รับเหมา',       '-'],
-    ['วันที่เริ่มต้น',   '-'],
-    ['วันที่แล้วเสร็จ',  '-'],
-    ['ระยะเวลาก่อสร้าง', '-'],
-    ['เลขที่สัญญา',      '-'],
-    [],
-    ['ประเภทอาคาร',  boqData?.summary?.building_type || project.type || '-'],
-    ['จำนวนชั้น',    boqData?.summary?.floors || project.floors || '-'],
-    ['พื้นที่ใช้สอย', (project.area || '-') + (project.area ? ' ตร.ม.' : '')],
-    [],
-    ['สรุปผลการวิเคราะห์', boqData?.summary?.key_findings || '-'],
-    [],
-    ['วันที่สร้างเอกสาร', today],
-  ], [22, 40]);
+  buildAndStyle(wb, '01_ข้อมูลโครงการ', [
+    T('ใบถอดปริมาณงานก่อสร้าง (BOQ)'),
+    SB('สร้างโดย SwiftBill + Claude AI'),
+    BL(),
+    SB('ข้อมูลทั่วไป'),
+    KV('ชื่อโครงการ',      project.name || '-'),
+    KV('ที่ตั้งโครงการ',   project.location || '-'),
+    KV('เจ้าของโครงการ',   '-'),
+    KV('ผู้ออกแบบ',        '-'),
+    KV('ผู้ควบคุมงาน',     '-'),
+    KV('ผู้รับเหมา',       '-'),
+    KV('วันที่เริ่มต้น',   '-'),
+    KV('วันที่แล้วเสร็จ',  '-'),
+    KV('ระยะเวลาก่อสร้าง', '-'),
+    KV('เลขที่สัญญา',      '-'),
+    BL(),
+    SB('ข้อมูลอาคาร'),
+    KV('ประเภทอาคาร',  boqData?.summary?.building_type || project.type || '-'),
+    KV('จำนวนชั้น',    boqData?.summary?.floors || project.floors || '-'),
+    KV('พื้นที่ใช้สอย', (project.area || '-') + (project.area ? ' ตร.ม.' : '')),
+    BL(),
+    SB('สรุปผลการวิเคราะห์'),
+    KV('ผลการวิเคราะห์', boqData?.summary?.key_findings || '-'),
+    BL(),
+    KV('วันที่สร้างเอกสาร', today),
+  ], [24, 52]);
 
   // ── Sheet 05: ฐานราก ─────────────────────────────────────────
   const footingRows = sh.footings || itemsToSheetRows(items, 'ฐานราก');
@@ -62,14 +173,14 @@ function generateBOQExcel(project, boqData) {
     r.excavation_m3, r.sand_m3, r.formwork_m2, r.rebar_bot_kg, r.rebar_tie_kg, r.rebar_kg
   ]);
   const f_total = sumRow(f_data2, [1,2,3,4,5,6,7,8,9,10]);
-  addSheet(wb, '05_ฐานราก', [
-    ['Sheet 05 — ฐานราก'],
-    [],
-    f_header1, ...f_data1,
-    [],
-    ['— Summary —'],
-    f_header2, ...f_data2,
-    ['รวม','','',...f_total.slice(2)]
+  buildAndStyle(wb, '05_ฐานราก', [
+    T('Sheet 05 — ฐานราก'),
+    BL(),
+    H(f_header1), ...f_data1.map(D),
+    BL(),
+    SB('สรุปปริมาณ (Summary)'),
+    H(f_header2), ...f_data2.map(D),
+    TT(['รวม','','',...f_total.slice(2)]),
   ], [8,10,6,6,6,7,8,8,7,14,14,12,10,20]);
 
   // ── Sheet 03: เสา ────────────────────────────────────────────
@@ -84,9 +195,11 @@ function generateBOQExcel(project, boqData) {
     n2(r.rebar_kg     || 0)
   ]);
   const c_total = sumRow(c_data, [7,8,9,10]);
-  addSheet(wb, '03_เสา', [
-    ['Sheet 03 — เสา'],[], c_header, ...c_data,
-    ['รวม','','','','','','','',...c_total.slice(7)]
+  buildAndStyle(wb, '03_เสา', [
+    T('Sheet 03 — เสา'),
+    BL(),
+    H(c_header), ...c_data.map(D),
+    TT(['รวม','','','','','','','',...c_total.slice(7)]),
   ], [8,14,6,7,6,14,14,10,10,10,12]);
 
   // ── Sheet 04: คาน ────────────────────────────────────────────
@@ -101,9 +214,11 @@ function generateBOQExcel(project, boqData) {
     r.notes||''
   ]);
   const b_total = sumRow(b_data, [7,8,9]);
-  addSheet(wb, '04_คาน', [
-    ['Sheet 04 — คาน'],[], b_header, ...b_data,
-    ['รวม','','','','','','',b_total[7],b_total[8],b_total[9],'']
+  buildAndStyle(wb, '04_คาน', [
+    T('Sheet 04 — คาน'),
+    BL(),
+    H(b_header), ...b_data.map(D),
+    TT(['รวม','','','','','','',b_total[7],b_total[8],b_total[9],'']),
   ], [8,14,6,7,14,14,16,10,10,12,20]);
 
   // ── Sheet 07: หลังคา ─────────────────────────────────────────
@@ -120,9 +235,11 @@ function generateBOQExcel(project, boqData) {
     ];
   });
   const r_total = sumRow(r_data, [2,4,5,6,7,8,9]);
-  addSheet(wb, '07_หลังคา', [
-    ['Sheet 07 — หลังคา (โครงเหล็กรูปพรรณ)'],[], r_header, ...r_data,
-    ['รวม','',r_total[2],'',r_total[4],r_total[5],r_total[6],r_total[7],r_total[8],r_total[9],'']
+  buildAndStyle(wb, '07_หลังคา', [
+    T('Sheet 07 — หลังคา (โครงเหล็กรูปพรรณ)'),
+    BL(),
+    H(r_header), ...r_data.map(D),
+    TT(['รวม','',r_total[2],'',r_total[4],r_total[5],r_total[6],r_total[7],r_total[8],r_total[9],'']),
   ], [8,20,12,8,12,12,12,10,12,12,20]);
 
   // ── Sheet 08: พื้นสำเร็จ ─────────────────────────────────────
@@ -135,12 +252,14 @@ function generateBOQExcel(project, boqData) {
     n2(r.area_m2||r.volume||0), r.notes||''
   ]);
   const sp_totalArea = sp_data.reduce((s,r)=>s+(Number(r[7])||0),0);
-  addSheet(wb, '08_พื้นสำเร็จ', [
-    ['Sheet 08 — พื้นสำเร็จรูป (Solid Plank)'],[], sp_header, ...sp_data,
-    ['รวม','','','','','','',n2(sp_totalArea),''],
-    [],
-    ['คอนกรีตทับหน้า (Topping) หนา 0.05 ม.','','','','','','',n2(sp_totalArea*0.05)+' ม³',''],
-    ['Wire Mesh #4 @ 0.20 ม.','','','','','','',n2(sp_totalArea)+' ม²',''],
+  buildAndStyle(wb, '08_พื้นสำเร็จ', [
+    T('Sheet 08 — พื้นสำเร็จรูป (Solid Plank)'),
+    BL(),
+    H(sp_header), ...sp_data.map(D),
+    TT(['รวม','','','','','','',n2(sp_totalArea),'']),
+    BL(),
+    KV('คอนกรีตทับหน้า (Topping) หนา 0.05 ม.', n2(sp_totalArea*0.05)+' ม³'),
+    KV('Wire Mesh #4 @ 0.20 ม.', n2(sp_totalArea)+' ม²'),
   ], [8,20,6,6,10,12,10,12,20]);
 
   // ── Sheet 09: พื้นหล่อในที่ ───────────────────────────────────
@@ -152,84 +271,76 @@ function generateBOQExcel(project, boqData) {
     r.rebar||'-', n2(r.concrete_m3||r.volume||0), r.notes||''
   ]);
   const sc_total = sc_data.reduce((s,r)=>s+(Number(r[7])||0),0);
-  addSheet(wb, '09_พื้นหล่อในที่', [
-    ['Sheet 09 — พื้นหล่อในที่ (CIP)'],[], sc_header, ...sc_data,
-    ['รวม','','','','','','',n2(sc_total),'']
+  buildAndStyle(wb, '09_พื้นหล่อในที่', [
+    T('Sheet 09 — พื้นหล่อในที่ (CIP)'),
+    BL(),
+    H(sc_header), ...sc_data.map(D),
+    TT(['รวม','','','','','','',n2(sc_total),'']),
   ], [8,20,6,6,6,7,16,12,20]);
 
   // ── Sheet 11: สรุปรวม ─────────────────────────────────────────
-  // รวบรวมค่าจากทุกชีท
   const totals = calcTotals(footingRows, colRows, beamRows, roofRows, precastRows, cipRows, items);
   const s_header = ['หมวด','รายการ','ปริมาณ','หน่วย','หมายเหตุ'];
-  addSheet(wb, '11_สรุปรวม', [
-    ['Sheet 11 — สรุปรวม'],[], s_header,
-    // งานดิน
-    ['1. งานดิน','ขุดดินฐานราก',                    n2(totals.excavation),'ม³',''],
-    ['','ทรายอัดแน่นใต้ Lean',                       n2(totals.sand),      'ม³',''],
-    // คอนกรีตหยาบ
-    ['2. คอนกรีตหยาบ','Lean Concrete 1:3:5',         n2(totals.lean),      'ม³',''],
-    // คอนกรีตโครงสร้าง
-    ['3. คอนกรีตโครงสร้าง','ฐานราก',               n2(totals.c_footing), 'ม³',''],
-    ['','เสา',                                        n2(totals.c_column),  'ม³',''],
-    ['','คาน',                                        n2(totals.c_beam),    'ม³',''],
-    ['','พื้นหล่อในที่',                              n2(totals.c_slab_cip),'ม³',''],
-    ['','Topping พื้นสำเร็จ',                        n2(sp_totalArea*0.05),'ม³','หนา 5 ซม.'],
-    ['','รวมคอนกรีตทั้งหมด',                         n2(totals.c_total),   'ม³',''],
-    // เหล็กเสริม
-    ['4. เหล็กเสริม','ฐานราก',                      n2(totals.r_footing), 'kg',''],
-    ['','เสา',                                        n2(totals.r_column),  'kg','รวม lap/hook แล้ว'],
-    ['','คาน',                                        n2(totals.r_beam),    'kg','รวม lap/hook แล้ว'],
-    ['','รวมเหล็กเสริม',                             n2(totals.r_total),   'kg',''],
-    // พื้น
-    ['5. พื้น','พื้นสำเร็จรูป (Solid Plank)',        n2(sp_totalArea),     'ม²',''],
-    ['','พื้นหล่อในที่',                              n2(totals.c_slab_cip/0.12||0),'ม²','ประมาณการ'],
-    ['','Wire Mesh #4@0.20',                          n2(sp_totalArea),     'ม²',''],
-    // ไม้แบบ
-    ['6. ไม้แบบ','ฐานราก',                          n2(totals.f_footing), 'ม²',''],
-    ['','เสา',                                        n2(totals.f_column),  'ม²',''],
-    ['','คาน',                                        n2(totals.f_beam),    'ม²',''],
-    ['','รวมไม้แบบทั้งหมด',                          n2(totals.f_total),   'ม²',''],
-    // หลังคา
-    ['7. หลังคา','พื้นที่ฉายราบ',                   n2(r_total[2]||0),    'ม²',''],
-    ['','พื้นที่จริง',                               n2(r_total[4]||0),    'ม²',''],
-    ['','น้ำหนักโครงเหล็ก',                         n2(r_total[8]||0),    'kg',''],
-    ['','Sag Rod',                                    r_total[7]||0,        'เส้น',''],
-    [],
-    ['— หมายเหตุ —',''],
-    ['1','ปริมาณนี้ยังไม่คำนวณราคา'],
-    ['2','น้ำหนักเหล็กรวมระยะดัดงอ + ระยะทาบแล้ว (lap=40D, hook=12D)'],
-    ['3','แนะนำ Wastage: เหล็ก +7%, คอนกรีต +5%, ไม้แบบ +10%'],
-    ['4',`ถอดโดย Claude AI จากแบบ "${project.name}" — ${today}`],
-  ], [16,28,10,8,24]);
+  buildAndStyle(wb, '11_สรุปรวม', [
+    T('Sheet 11 — สรุปรวมปริมาณงาน'),
+    BL(),
+    H(s_header),
+    D(['1. งานดิน','ขุดดินฐานราก',                    n2(totals.excavation),'ม³','']),
+    D(['','ทรายอัดแน่นใต้ Lean',                       n2(totals.sand),      'ม³','']),
+    D(['2. คอนกรีตหยาบ','Lean Concrete 1:3:5',         n2(totals.lean),      'ม³','']),
+    D(['3. คอนกรีตโครงสร้าง','ฐานราก',               n2(totals.c_footing), 'ม³','']),
+    D(['','เสา',                                        n2(totals.c_column),  'ม³','']),
+    D(['','คาน',                                        n2(totals.c_beam),    'ม³','']),
+    D(['','พื้นหล่อในที่',                              n2(totals.c_slab_cip),'ม³','']),
+    D(['','Topping พื้นสำเร็จ',                        n2(sp_totalArea*0.05),'ม³','หนา 5 ซม.']),
+    TT(['','รวมคอนกรีตทั้งหมด',                         n2(totals.c_total),   'ม³','']),
+    D(['4. เหล็กเสริม','ฐานราก',                      n2(totals.r_footing), 'kg','']),
+    D(['','เสา',                                        n2(totals.r_column),  'kg','รวม lap/hook แล้ว']),
+    D(['','คาน',                                        n2(totals.r_beam),    'kg','รวม lap/hook แล้ว']),
+    TT(['','รวมเหล็กเสริม',                             n2(totals.r_total),   'kg','']),
+    D(['5. พื้น','พื้นสำเร็จรูป (Solid Plank)',        n2(sp_totalArea),     'ม²','']),
+    D(['','พื้นหล่อในที่',                              n2(totals.c_slab_cip/0.12||0),'ม²','ประมาณการ']),
+    D(['','Wire Mesh #4@0.20',                          n2(sp_totalArea),     'ม²','']),
+    D(['6. ไม้แบบ','ฐานราก',                          n2(totals.f_footing), 'ม²','']),
+    D(['','เสา',                                        n2(totals.f_column),  'ม²','']),
+    D(['','คาน',                                        n2(totals.f_beam),    'ม²','']),
+    TT(['','รวมไม้แบบทั้งหมด',                          n2(totals.f_total),   'ม²','']),
+    D(['7. หลังคา','พื้นที่ฉายราบ',                   n2(r_total[2]||0),    'ม²','']),
+    D(['','พื้นที่จริง',                               n2(r_total[4]||0),    'ม²','']),
+    D(['','น้ำหนักโครงเหล็ก',                         n2(r_total[8]||0),    'kg','']),
+    D(['','Sag Rod',                                    r_total[7]||0,        'เส้น','']),
+    BL(),
+    SB('หมายเหตุ'),
+    NOTE('1. ปริมาณนี้ยังไม่คำนวณราคา'),
+    NOTE('2. น้ำหนักเหล็กรวมระยะดัดงอ + ระยะทาบแล้ว (lap=40D, hook=12D)'),
+    NOTE('3. แนะนำ Wastage: เหล็ก +7%, คอนกรีต +5%, ไม้แบบ +10%'),
+    NOTE(`4. ถอดโดย Claude AI จากแบบ "${project.name}" — ${today}`),
+  ], [16,28,12,8,24]);
 
   // ── Sheet 13: สรุปวัสดุ (รวม Wastage) ────────────────────────
   const mat_header = ['ลำดับ','รายการวัสดุ','ปริมาณ (สุทธิ)','หน่วย','Wastage','ปริมาณสั่งซื้อ','หมายเหตุ'];
   const wasted = (v, pct) => n2(v*(1+pct/100));
-  addSheet(wb, '13_สรุปวัสดุ', [
-    ['Sheet 13 — สรุปวัสดุสำหรับสั่งซื้อ (รวม Wastage)'],[], mat_header,
-    // ก. วัสดุดิน-ทราย
-    ['ก.','ทรายอัดแน่นใต้ Lean',  n2(totals.sand),            'ม³','5%', wasted(totals.sand,5),''],
-    ['',  'ดินถมกลับ (ประมาณ)',    n2(totals.excavation*0.3),  'ม³','10%',wasted(totals.excavation*0.3,10),''],
-    // ข. คอนกรีต
-    ['ข.','Lean Concrete 1:3:5',   n2(totals.lean),            'ม³','5%', wasted(totals.lean,5),''],
-    ['',  "คอนกรีตผสมเสร็จ fc'=240 ksc",n2(totals.c_total),  'ม³','5%', wasted(totals.c_total,5),'ฐานราก+เสา+คาน'],
-    ['',  "คอนกรีตผสมเสร็จ fc'=210 ksc",n2(sp_totalArea*0.05),'ม³','5%',wasted(sp_totalArea*0.05,5),'Topping พื้นสำเร็จ'],
-    // ค. เหล็กเสริม
-    ['ค.','เหล็กข้ออ้อย SD40 (รวม)', n2(totals.r_total),      'kg','7%', wasted(totals.r_total,7),'DB10-DB25'],
-    ['',  'เหล็กกลม SR24 (ปลอก)',    n2(totals.r_total*0.15),  'kg','7%', wasted(totals.r_total*0.15,7),'RB6, RB9 ~15%'],
-    ['',  'ลวดผูก #18',              n2(totals.r_total*0.01),  'kg','10%',wasted(totals.r_total*0.01,10),'~1% ของเหล็ก'],
-    // ง. ไม้แบบ
-    ['ง.','ไม้แบบเรียบ (ไม้อัด)',    n2(totals.f_total),        'ม²','10%',wasted(totals.f_total,10),''],
-    ['',  'ไม้คร่าว 2"×3"',          n2(totals.f_total*1.2),   'เมตร','10%',wasted(totals.f_total*1.2,10),'~1.2 ม./ม²'],
-    ['',  'ตะปู',                    n2(totals.f_total*0.3),   'kg','10%',wasted(totals.f_total*0.3,10),'~0.3 kg/ม²'],
-    // จ. พื้น
-    ['จ.','Solid Plank',             n2(sp_totalArea),          'ม²','3%', wasted(sp_totalArea,3),''],
-    ['',  'Wire Mesh #4@0.20',       n2(sp_totalArea),          'ม²','5%', wasted(sp_totalArea,5),''],
-    // ฉ. โครงเหล็กหลังคา
-    ['ฉ.','โครงเหล็กรูปพรรณ',       n2(r_total[8]||0),         'kg','5%', wasted(r_total[8]||0,5),'จันทัน+แป'],
-    ['',  'Sag Rod',                 r_total[7]||0,             'เส้น','10%',Math.ceil((r_total[7]||0)*1.1),''],
-    [],
-    ['หมายเหตุ','Wastage: คอนกรีต +5%, เหล็ก +7%, ไม้แบบ +10%, พื้นสำเร็จ +3%'],
+  buildAndStyle(wb, '13_สรุปวัสดุ', [
+    T('Sheet 13 — สรุปวัสดุสำหรับสั่งซื้อ (รวม Wastage)'),
+    BL(),
+    H(mat_header),
+    D(['ก.','ทรายอัดแน่นใต้ Lean',  n2(totals.sand),            'ม³','5%', wasted(totals.sand,5),'']),
+    D(['',  'ดินถมกลับ (ประมาณ)',    n2(totals.excavation*0.3),  'ม³','10%',wasted(totals.excavation*0.3,10),'']),
+    D(['ข.','Lean Concrete 1:3:5',   n2(totals.lean),            'ม³','5%', wasted(totals.lean,5),'']),
+    D(['',  "คอนกรีตผสมเสร็จ fc'=240 ksc",n2(totals.c_total),  'ม³','5%', wasted(totals.c_total,5),'ฐานราก+เสา+คาน']),
+    D(['',  "คอนกรีตผสมเสร็จ fc'=210 ksc",n2(sp_totalArea*0.05),'ม³','5%',wasted(sp_totalArea*0.05,5),'Topping พื้นสำเร็จ']),
+    D(['ค.','เหล็กข้ออ้อย SD40 (รวม)', n2(totals.r_total),      'kg','7%', wasted(totals.r_total,7),'DB10-DB25']),
+    D(['',  'เหล็กกลม SR24 (ปลอก)',    n2(totals.r_total*0.15),  'kg','7%', wasted(totals.r_total*0.15,7),'RB6, RB9 ~15%']),
+    D(['',  'ลวดผูก #18',              n2(totals.r_total*0.01),  'kg','10%',wasted(totals.r_total*0.01,10),'~1% ของเหล็ก']),
+    D(['ง.','ไม้แบบเรียบ (ไม้อัด)',    n2(totals.f_total),        'ม²','10%',wasted(totals.f_total,10),'']),
+    D(['',  'ไม้คร่าว 2"×3"',          n2(totals.f_total*1.2),   'เมตร','10%',wasted(totals.f_total*1.2,10),'~1.2 ม./ม²']),
+    D(['',  'ตะปู',                    n2(totals.f_total*0.3),   'kg','10%',wasted(totals.f_total*0.3,10),'~0.3 kg/ม²']),
+    D(['จ.','Solid Plank',             n2(sp_totalArea),          'ม²','3%', wasted(sp_totalArea,3),'']),
+    D(['',  'Wire Mesh #4@0.20',       n2(sp_totalArea),          'ม²','5%', wasted(sp_totalArea,5),'']),
+    D(['ฉ.','โครงเหล็กรูปพรรณ',       n2(r_total[8]||0),         'kg','5%', wasted(r_total[8]||0,5),'จันทัน+แป']),
+    D(['',  'Sag Rod',                 r_total[7]||0,             'เส้น','10%',Math.ceil((r_total[7]||0)*1.1),'']),
+    BL(),
+    NOTE('Wastage: คอนกรีต +5%, เหล็ก +7%, ไม้แบบ +10%, พื้นสำเร็จ +3%'),
   ], [5,28,12,8,8,14,20]);
 
   // ── Save ─────────────────────────────────────────────────────
