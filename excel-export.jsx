@@ -251,11 +251,6 @@ function generateBOQExcel(project, boqData) {
   const rm_total = sumRow(rm_data, [5,6]);
   // น้ำหนักโครงหลังคารวม — ใช้จาก member breakdown ถ้ามี ไม่งั้นใช้ summary
   const roofSteelKg = n2(rm_data.length > 0 ? (Number(rm_total[6])||0) : (Number(r_total[8])||0));
-  // label เหล็กเสริม topping จากข้อมูลจริง
-  const sp_rebarLabel = (() => {
-    const labels = precastRows.map(r => r.topping_rebar||r.wiremesh||'').filter(Boolean);
-    return labels.length ? [...new Set(labels)].join(', ') : 'Wire Mesh #4@0.20';
-  })();
   const roofLayout = [
     T('Sheet 07 — หลังคา (โครงเหล็กรูปพรรณ)'),
     BL(),
@@ -274,6 +269,11 @@ function generateBOQExcel(project, boqData) {
 
   // ── Sheet 08: พื้นสำเร็จ ─────────────────────────────────────
   const precastRows = sh.slabs_precast || itemsToSheetRows(items, 'พื้น', 'สำเร็จ');
+  // label เหล็กเสริม topping จากข้อมูลจริง
+  const sp_rebarLabel = (() => {
+    const labels = precastRows.map(r => r.topping_rebar||r.wiremesh||'').filter(Boolean);
+    return labels.length ? [...new Set(labels)].join(', ') : 'Wire Mesh #4@0.20';
+  })();
   const sp_header = ['รหัส','ตำแหน่ง','ตำแหน่ง (กริด)','B (m)','L (m)','จำนวนช่อง','หนาแผ่น (m)','หนา Topping (m)','เหล็กเสริม Topping','fc\' Topping','น้ำหนักบรรทุก (กก./ม²)','พื้นที่รวม (ม²)','หมายเหตุ'];
   const sp_data = precastRows.map(r => [
     r.code||'-', r.location||r.name||'-', r.grid||r.gridline||'-',
