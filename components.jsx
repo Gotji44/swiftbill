@@ -183,6 +183,11 @@ function Sidebar({ screen, project, collapsed, onToggle, onNav, onExit, user, lo
         {rail('templates', 'bookmark', 'เทมเพลตราคาของฉัน')}
         <div className="rail-div"></div>
         <div className="avatar" title={displayName + ' · ' + userEmail}>{avatarLetter}</div>
+        <button className="rail-item" title="ออกจากระบบ"
+          style={{color:'var(--ink-3)'}}
+          onClick={() => onNav('logout')}>
+          <Icon name="logout" size={20} />
+        </button>
       </aside>);
   }
 
