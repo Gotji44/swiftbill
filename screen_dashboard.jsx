@@ -144,6 +144,8 @@ function CreateProjectModal({ onClose, onCreate }){
     {id:'architecture', th:'งานสถาปัตยกรรม', ic:'ruler'},
     {id:'electrical', th:'งานไฟฟ้า', ic:'bolt'},
     {id:'mechanical', th:'งานเครื่องกล', ic:'cog'},
+    {id:'sanitary', th:'งานสุขาภิบาล', ic:'droplet'},
+    {id:'landscape', th:'งานออกแบบภูมิทัศน์', ic:'leaf'},
   ];
   const [f,setF] = useState({ name:'', location:'', region:'กทม', type:'commercial', floors:1, area:'' });
   const [work,setWork] = useState(['structure']);   // เลือกได้หลายอย่าง (default: งานโครงสร้าง)
