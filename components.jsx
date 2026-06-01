@@ -227,8 +227,8 @@ function Sidebar({ screen, project, collapsed, onToggle, onNav, onExit, user, lo
             <div className="rl" style={{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{userEmail}</div>
           </div>
           <button className="minibtn" style={{ color: '#7b8aa3' }}
-            title={locked ? 'AI กำลังวิเคราะห์อยู่ กรุณารอจนเสร็จ' : 'ออกจากระบบ'}
-            onClick={() => !locked && onNav('logout')}><Icon name="logout" size={17} /></button>
+            title="ออกจากระบบ"
+            onClick={() => onNav('logout')}><Icon name="logout" size={17} /></button>
         </div>
       </div>
     </aside>);
