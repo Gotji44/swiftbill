@@ -138,6 +138,8 @@ function ScopeScreen({ project, uploadData, onConfirm, onAnalyzingChange }){
       if(!session?.access_token) throw new Error('session expired — ไม่พบเซสชันผู้ใช้');
       const selectedScope = scope.map(id => SCOPE_CAT[id]).filter(Boolean);
 
+      const aiT0 = Date.now();   // จับเวลาเฉพาะส่วน AI ถอดปริมาณ (ตั้งแต่ส่งแบบจนได้ผล)
+
       // สร้าง AbortController สำหรับ client-side timeout
       const clientAC = new AbortController();
       abortRef.current = clientAC;
@@ -257,7 +259,7 @@ function ScopeScreen({ project, uploadData, onConfirm, onAnalyzingChange }){
         if(warnA) console.warn('analysis warning:', warnA);
         toast(warnA ? '⚠️ วิเคราะห์เสร็จ แต่ข้อมูลบางส่วนอาจไม่ครบ — ดูคำแนะนำในผลลัพธ์' : 'วิเคราะห์แบบสำเร็จ ✓');
         onAnalyzingChange && onAnalyzingChange(false);
-        onConfirm(boqData, withPrice);
+        onConfirm(boqData, withPrice, Math.round((Date.now()-aiT0)/1000));
         return; // ออกจาก try block
       }
 
@@ -270,7 +272,7 @@ function ScopeScreen({ project, uploadData, onConfirm, onAnalyzingChange }){
       if(warnS) console.warn('analysis warning:', warnS);
       toast(warnS ? '⚠️ วิเคราะห์เสร็จ แต่ข้อมูลบางส่วนอาจไม่ครบ — ดูคำแนะนำในผลลัพธ์' : 'วิเคราะห์แบบสำเร็จ ✓');
       onAnalyzingChange && onAnalyzingChange(false);
-      onConfirm(boqData, withPrice);
+      onConfirm(boqData, withPrice, Math.round((Date.now()-aiT0)/1000));
 
     } catch(err) {
       const secs = (Date.now() - t0) / 1000;

@@ -270,8 +270,15 @@ function App(){
           onComplete={(data)=>{ setUploadData(data); setProjectStatus(project,'quoted'); setScreen('scope'); }}/>}
         {screen==='scope' && <ScopeScreen project={project} uploadData={uploadData}
           onAnalyzingChange={(analyzing)=>{ setIsAnalyzing(analyzing); if(analyzing) setProjectStatus(project,'extracting'); }}
-          onConfirm={(boqData, withPrice)=>{ setIsAnalyzing(false); setBoqData(boqData);
-            patchProject(project.id,{ pricing: withPrice }); setScreen('results'); }}/>}
+          onConfirm={(boqData, withPrice, analyzeSeconds)=>{ setIsAnalyzing(false); setBoqData(boqData);
+            const upd = { pricing: withPrice };
+            if(analyzeSeconds != null) upd.analyze_seconds = analyzeSeconds;
+            patchProject(project.id, upd);
+            if(analyzeSeconds != null && !project.__demo){
+              window.updateProject(project.id, { analyze_seconds: analyzeSeconds })
+                .catch(e=>console.warn('บันทึกเวลา AI ไม่สำเร็จ:', e));
+            }
+            setScreen('results'); }}/>}
         {screen==='results' && <ResultsScreen project={project} boqData={boqData}
           onConfirm={()=>{ if(project.pricing){ setScreen('pricing'); } else { setProjectStatus(project,'completed'); setScreen('delivery'); } }}/>}
         {screen==='pricing' && <PricingScreen project={project} onConfirm={()=>{ setProjectStatus(project,'completed'); setScreen('delivery'); }}/>}

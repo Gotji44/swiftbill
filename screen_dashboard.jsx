@@ -1,4 +1,10 @@
 /* ===================== Dashboard ===================== */
+function fmtDur(s){
+  if(s == null) return '';
+  if(s < 60) return s + ' วินาที';
+  const m = Math.floor(s/60), r = s%60;
+  return r ? `${m} นาที ${r} วินาที` : `${m} นาที`;
+}
 function Dashboard({ projects, onOpen, onCreate, onDelete }){
   const [filter,setFilter] = useState('all');
   const [q,setQ] = useState('');
@@ -100,6 +106,7 @@ function Dashboard({ projects, onOpen, onCreate, onDelete }){
                 <div className="row"><Icon name="building" size={15} className="ic"/>{BUILDING_TYPE[p.type]} · {p.floors} ชั้น</div>
                 <div className="row"><Icon name="pin" size={15} className="ic"/>{p.location}</div>
                 <div className="row"><Icon name="cal" size={15} className="ic"/>{p.date} · {fmt(p.area)} ตร.ม.</div>
+                {p.analyze_seconds != null && <div className="row"><Icon name="clock" size={15} className="ic"/>AI ถอดปริมาณ {fmtDur(p.analyze_seconds)}</div>}
               </div>
               <div>
                 <div className="proj-prog"><span style={{width:STATUS[p.status].prog+'%'}}></span></div>
