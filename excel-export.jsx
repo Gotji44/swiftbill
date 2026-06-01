@@ -244,23 +244,25 @@ function generateBOQExcel(project, boqData) {
 
   // ── Sheet 08: พื้นสำเร็จ ─────────────────────────────────────
   const precastRows = sh.slabs_precast || itemsToSheetRows(items, 'พื้น', 'สำเร็จ');
-  const sp_header = ['รหัส','ตำแหน่ง','B (m)','L (m)','จำนวนช่อง','หนา Topping (m)','fc\' Topping','พื้นที่รวม (ม²)','หมายเหตุ'];
+  const sp_header = ['รหัส','ตำแหน่ง','ตำแหน่ง (กริด)','B (m)','L (m)','จำนวนช่อง','หนาแผ่น (m)','หนา Topping (m)','เหล็กเสริม Topping','fc\' Topping','น้ำหนักบรรทุก (กก./ม²)','พื้นที่รวม (ม²)','หมายเหตุ'];
   const sp_data = precastRows.map(r => [
-    r.code||'-', r.location||r.name||'-',
+    r.code||'-', r.location||r.name||'-', r.grid||r.gridline||'-',
     n2(r.B||0), n2(r.L||0), r.count||r.qty||1,
-    r.topping_t||0.05, r.fc||210,
+    r.plank_t||0.05, r.topping_t||0.05,
+    r.topping_rebar||r.wiremesh||'-', r.fc||210, r.load_kg_m2||'-',
     n2(r.area_m2||r.volume||0), r.notes||''
   ]);
-  const sp_totalArea = sp_data.reduce((s,r)=>s+(Number(r[7])||0),0);
+  const sp_totalArea = sp_data.reduce((s,r)=>s+(Number(r[11])||0),0);
+  const sp_toppingT = (precastRows[0] && precastRows[0].topping_t) || 0.05;
   buildAndStyle(wb, '08_พื้นสำเร็จ', [
     T('Sheet 08 — พื้นสำเร็จรูป (Solid Plank)'),
     BL(),
     H(sp_header), ...sp_data.map(D),
-    TT(['รวม','','','','','','',n2(sp_totalArea),'']),
+    TT(['รวม','','','','','','','','','','',n2(sp_totalArea),'']),
     BL(),
-    KV('คอนกรีตทับหน้า (Topping) หนา 0.05 ม.', n2(sp_totalArea*0.05)+' ม³'),
-    KV('Wire Mesh #4 @ 0.20 ม.', n2(sp_totalArea)+' ม²'),
-  ], [8,20,6,6,10,12,10,12,20]);
+    KV('คอนกรีตทับหน้า (Topping) หนา '+n2(sp_toppingT)+' ม.', n2(sp_totalArea*sp_toppingT)+' ม³'),
+    KV('เหล็กเสริม Topping (ดูคอลัมน์ในตาราง)', n2(sp_totalArea)+' ม²'),
+  ], [8,16,12,6,6,9,9,11,16,9,14,12,18]);
 
   // ── Sheet 09: พื้นหล่อในที่ ───────────────────────────────────
   const cipRows = sh.slabs_cip || itemsToSheetRows(items, 'พื้น', 'หล่อ');
