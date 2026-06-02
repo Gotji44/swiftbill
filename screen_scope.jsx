@@ -140,13 +140,25 @@ function ScopeScreen({ project, uploadData, onConfirm, onAnalyzingChange }){
       setAnalyzeMsg('กำลังส่งแบบให้ Claude AI...');
       await new Promise(r=>setTimeout(r,300));
 
-      let { data:{ session } } = await window.supabase.auth.getSession();
-      // รีเฟรช token ถ้าใกล้หมดอายุ (กันรอบวิเคราะห์ที่นานทำให้ JWT หมดอายุ → 401)
-      if(session?.expires_at && session.expires_at * 1000 < Date.now() + 120000){
-        const r = await window.supabase.auth.refreshSession();
-        session = r.data?.session || session;
+      // ครอบ auth ด้วย timeout — กัน getSession/refreshSession ค้างถาวร (auth-lock bug ของ
+      // supabase-js) ที่ทำให้หน้าจอหมุนค้างที่ "ส่งแบบ" โดยไม่มี error เพราะ submit ยังไม่ทันถูกเรียก
+      const withTimeout = (p, ms, label) => Promise.race([
+        p,
+        new Promise((_, rej) => setTimeout(() => rej(new Error(label)), ms)),
+      ]);
+      let session;
+      try {
+        const r0 = await withTimeout(window.supabase.auth.getSession(), 10000, 'auth_timeout_getsession');
+        session = r0?.data?.session;
+        // รีเฟรช token ถ้าใกล้หมดอายุ (กันรอบวิเคราะห์ที่นานทำให้ JWT หมดอายุ → 401)
+        if(session?.expires_at && session.expires_at * 1000 < Date.now() + 120000){
+          const r = await withTimeout(window.supabase.auth.refreshSession(), 10000, 'auth_timeout_refresh');
+          session = r?.data?.session || session;
+        }
+      } catch(authErr) {
+        throw new Error('เชื่อมต่อระบบยืนยันตัวตนไม่สำเร็จ (auth ค้าง) — กรุณารีเฟรชหน้าเว็บแล้วลองใหม่');
       }
-      if(!session?.access_token) throw new Error('session expired — ไม่พบเซสชันผู้ใช้');
+      if(!session?.access_token) throw new Error('session expired — ไม่พบเซสชันผู้ใช้ กรุณารีเฟรชหน้าเว็บแล้วลองใหม่');
       const selectedScope = scope.map(id => SCOPE_CAT[id]).filter(Boolean);
 
       const aiT0 = Date.now();   // จับเวลาเฉพาะส่วน AI ถอดปริมาณ (ตั้งแต่ส่งแบบจนได้ผล)
