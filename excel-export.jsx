@@ -204,22 +204,23 @@ function generateBOQExcel(project, boqData) {
 
   // ── Sheet 04: คาน ────────────────────────────────────────────
   const beamRows = sh.beams || itemsToSheetRows(items, 'คาน');
-  const b_header = ['รหัส','หน้าตัด B×D (m)','ยาว (m)','จำนวน','เหล็กบน','เหล็กล่าง','ปลอก','ปริมาตรรวม (ม³)','ไม้แบบรวม (ม²)','น.น.เหล็กรวม (kg)','หมายเหตุ'];
+  const b_header = ['รหัส','หน้าตัด B×D (m)','ตำแหน่ง (กริด)','ยาว (m)','จำนวน','เหล็กบน','เหล็กล่าง','ปลอก','ปริมาตรรวม (ม³)','ไม้แบบรวม (ม²)','น.น.เหล็กรวม (kg)','หมายเหตุ'];
   const b_data = beamRows.map(r => [
-    r.code||'-', r.section||'-', n2(r.length)||'-', r.count||r.qty||0,
+    r.code||'-', r.section||'-', r.grid||r.gridline||r.location||'-',
+    n2(r.length)||'-', r.count||r.qty||0,
     r.rebar_top||r.rebar||'-', r.rebar_bot||'-', r.ties||'-',
     n2(r.concrete_m3||r.volume||0),
     n2(r.formwork_m2||0),
     n2(r.rebar_kg||0),
     r.notes||''
   ]);
-  const b_total = sumRow(b_data, [7,8,9]);
+  const b_total = sumRow(b_data, [8,9,10]);
   buildAndStyle(wb, '04_คาน', [
     T('Sheet 04 — คาน'),
     BL(),
     H(b_header), ...b_data.map(D),
-    TT(['รวม','','','','','','',b_total[7],b_total[8],b_total[9],'']),
-  ], [8,14,6,7,14,14,16,10,10,12,20]);
+    TT(['รวม','','','','','','','',b_total[8],b_total[9],b_total[10],'']),
+  ], [8,14,12,6,7,14,14,16,10,10,12,20]);
 
   // ── Sheet 07: หลังคา ─────────────────────────────────────────
   const roofRows = sh.roof || itemsToSheetRows(items, 'หลังคา');
