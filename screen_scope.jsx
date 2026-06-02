@@ -84,7 +84,7 @@ function ScopeScreen({ project, uploadData, onConfirm, onAnalyzingChange }){
   // CLIENT-SIDE TIMEOUT = 45 วิ สำหรับขั้น "ส่งแบบ/สร้าง job" (async path ตอบ ~2s)
   // ถ้าค้างเกินนี้ = server ไม่ตอบ → fail เร็วพร้อมข้อความ แทนที่จะค้างเงียบ
   const CLIENT_TIMEOUT = 45_000;
-  const POLL_MAX_WAIT_MS = 6.5*60*1000;        // รอ poll สูงสุด 6.5 นาที (backend timeout 5.5 นาที + เผื่อเวลาเขียนผล)
+  const POLL_MAX_WAIT_MS = 3*60*1000;          // รอ poll สูงสุด 3 นาที (backend abort 145 วิ. + เผื่อเขียนผล/reaper) — free-plan worker ตายที่ ~150 วิ.
   const POLL_QUERY_TIMEOUT = 8_000;            // ตัด query แต่ละรอบที่ค้างเกิน 8 วิ
 
   // จับเวลาขณะ AI กำลังถอดปริมาณ

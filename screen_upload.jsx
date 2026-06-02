@@ -357,7 +357,8 @@ function UploadScreen({ project, onComplete, onUploadingChange }){
         <div style={{background:'var(--primary-soft)',padding:'10px 14px',borderRadius:8,
           fontSize:13,color:'var(--primary)',marginBottom:16,lineHeight:1.6}}>
           💡 <b>ติ๊กเฉพาะหน้าแบบโครงสร้าง</b> (ฐานราก · เสา · คาน · พื้น · หลังคา) แล้วกด "อัปโหลดหน้าที่เลือก"<br/>
-          ตัดหน้าที่ไม่เกี่ยว AI ใช้เวลาน้อยลงและประหยัด credit
+          ตัดหน้าที่ไม่เกี่ยว AI ใช้เวลาน้อยลงและประหยัด credit<br/>
+          ⏱️ <b>แบบที่สมาชิกเยอะ:</b> เลือกหน้าน้อยลง หรือแยกเลือกหมวดทีละ 2–3 หมวดต่อรอบ เพื่อให้แต่ละรอบเสร็จใน ~2 นาที (ระบบจำกัดเวลาประมวลผล ~150 วิ./รอบ)
         </div>
 
         {error && (
