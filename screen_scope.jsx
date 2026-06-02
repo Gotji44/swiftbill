@@ -211,6 +211,7 @@ function ScopeScreen({ project, uploadData, onConfirm, onAnalyzingChange }){
           const pollStart = Date.now();
           let stopped = false;          // กันไม่ให้ settle ซ้ำ
           let pollTimer = null;
+          let onVisible = null;         // listener กลับมา foreground → poll ทันที (เคลียร์ใน finish)
           let consecErr = 0;            // นับ query ที่ล้มต่อเนื่อง (กัน blip ชั่วคราว)
           const MAX_CONSEC_ERR = 6;     // ล้มติดกัน ~30 วิ ค่อยยอมแพ้ (ไม่เด้งกลับทันทีจาก blip เดียว)
 
@@ -220,6 +221,7 @@ function ScopeScreen({ project, uploadData, onConfirm, onAnalyzingChange }){
             stopped = true;
             clearTimeout(pollTimer);
             clearTimeout(watchdog);
+            if(onVisible) document.removeEventListener('visibilitychange', onVisible);
             if(pollCancelRef.current === cancelPoll) pollCancelRef.current = null;
             fn(val);
           };
@@ -228,17 +230,33 @@ function ScopeScreen({ project, uploadData, onConfirm, onAnalyzingChange }){
           const cancelPoll = () => finish(reject, new Error('user_cancel_poll'));
           pollCancelRef.current = cancelPoll;
 
+          // ‼️ เช็คสถานะผ่าน fetch() ตรง ๆ ไป REST endpoint — ไม่ผ่าน supabase-js
+          // เพราะ client library ค้างได้ (auth/fetch-lock) และ .abortSignal() ปลดล็อกไม่จริง
+          // → ทำให้ poll/กู้ผลค้างถาวรทั้งที่งานเสร็จแล้ว. fetch + AbortController ตัดการค้างได้ชัวร์
+          const fetchJob = async () => {
+            const ac = new AbortController();
+            const tid = setTimeout(() => ac.abort(), POLL_QUERY_TIMEOUT);
+            try {
+              const res = await fetch(
+                `https://zokzcjbvjcxfjpcjsegx.supabase.co/rest/v1/analysis_jobs?id=eq.${jobId}&select=status,result,error_msg`,
+                { headers: {
+                    apikey: 'sb_publishable_nL-wFMwEzKss2HZOylspIA_9ypFMEWv',
+                    Authorization: `Bearer ${session.access_token}`,
+                    Accept: 'application/json'
+                  }, signal: ac.signal }
+              );
+              if(!res.ok) throw new Error('HTTP ' + res.status);
+              const arr = await res.json();
+              return Array.isArray(arr) ? (arr[0] || null) : null;
+            } finally { clearTimeout(tid); }
+          };
+
           // ก่อนยอมแพ้ (watchdog/query fail) เช็คสถานะครั้งสุดท้าย — กันกรณีแท็บถูก throttle
           // ทำให้ poll พลาดจังหวะ done ทั้งที่งานเสร็จแล้ว → ถ้า done ให้ resolve ไม่ reject ทิ้งผลลัพธ์
           const giveUpOrRescue = async (rejectErr) => {
             if(stopped) return;
             try {
-              const { data: job } = await window.supabase
-                .from('analysis_jobs')
-                .select('status, result, error_msg')
-                .eq('id', jobId)
-                .abortSignal(AbortSignal.timeout(POLL_QUERY_TIMEOUT))
-                .single();
+              const job = await fetchJob();
               if(stopped) return;
               if(job?.status === 'done')  { finish(resolve, job.result); return; }
               if(job?.status === 'error') { finish(reject, new Error(job.error_msg || 'AI ประมวลผลไม่สำเร็จ')); return; }
@@ -255,29 +273,14 @@ function ScopeScreen({ project, uploadData, onConfirm, onAnalyzingChange }){
           const poll = async () => {
             if(stopped) return;
             try {
-              const { data: job, error: qErr } = await window.supabase
-                .from('analysis_jobs')
-                .select('status, result, error_msg')
-                .eq('id', jobId)
-                .abortSignal(AbortSignal.timeout(POLL_QUERY_TIMEOUT))  // กัน query ค้าง
-                .single();
+              const job = await fetchJob();
               if(stopped) return;
-              if(qErr){
-                // query ล้มชั่วคราว (เน็ตกระตุก/timeout) → ไม่ล้มทั้งงาน รอลองรอบถัดไป
-                consecErr++;
-                if(consecErr >= MAX_CONSEC_ERR){
-                  giveUpOrRescue(new Error('ตรวจสถานะ job ไม่สำเร็จ: ' + qErr.message));
-                  return;
-                }
-                console.warn(`poll query error (${consecErr}/${MAX_CONSEC_ERR}) จะลองใหม่:`, qErr.message);
-              } else {
-                consecErr = 0;   // อ่านสำเร็จ → รีเซ็ตตัวนับ
-                if(job?.status === 'done')  { finish(resolve, job.result); return; }
-                if(job?.status === 'error') { finish(reject, new Error(job.error_msg || 'AI ประมวลผลไม่สำเร็จ')); return; }
-                const waited = Math.floor((Date.now()-pollStart)/1000);
-                const idx = Math.min(Math.floor(waited/STAGE_SECS), stages.length-1);
-                setAnalyzeMsg(stages[idx]);
-              }
+              consecErr = 0;   // อ่านสำเร็จ → รีเซ็ตตัวนับ
+              if(job?.status === 'done')  { finish(resolve, job.result); return; }
+              if(job?.status === 'error') { finish(reject, new Error(job.error_msg || 'AI ประมวลผลไม่สำเร็จ')); return; }
+              const waited = Math.floor((Date.now()-pollStart)/1000);
+              const idx = Math.min(Math.floor(waited/STAGE_SECS), stages.length-1);
+              setAnalyzeMsg(stages[idx]);
             } catch(e){
               // query รอบนี้ค้าง/พลาด → ไม่ล้มทั้งกระบวนการ ปล่อยให้รอบถัดไปลองใหม่ จน watchdog ตัดเอง
               if(stopped) return;
@@ -292,6 +295,15 @@ function ScopeScreen({ project, uploadData, onConfirm, onAnalyzingChange }){
             pollTimer = setTimeout(poll, POLL_INTERVAL);
           };
           pollTimer = setTimeout(poll, POLL_INTERVAL);
+
+          // เมื่อแท็บถูกพับไว้เบื้องหลัง setTimeout จะถูก throttle (poll ช้า/พลาด)
+          // → พอกลับมา foreground ให้ยิง poll ทันที ไม่ต้องรอรอบ 5 วิ.ที่อาจถูกหน่วง
+          onVisible = () => {
+            if(stopped || document.visibilityState !== 'visible') return;
+            clearTimeout(pollTimer);
+            poll();
+          };
+          document.addEventListener('visibilitychange', onVisible);
         });
 
         setAnalyzeStep(3);
