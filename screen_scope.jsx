@@ -84,7 +84,7 @@ function ScopeScreen({ project, uploadData, onConfirm, onAnalyzingChange }){
   // CLIENT-SIDE TIMEOUT = 45 วิ สำหรับขั้น "ส่งแบบ/สร้าง job" (async path ตอบ ~2s)
   // ถ้าค้างเกินนี้ = server ไม่ตอบ → fail เร็วพร้อมข้อความ แทนที่จะค้างเงียบ
   const CLIENT_TIMEOUT = 45_000;
-  const POLL_MAX_WAIT_MS = 8*60*1000;          // รอ poll สูงสุด 8 นาที แล้วหยุดแน่นอน
+  const POLL_MAX_WAIT_MS = 6.5*60*1000;        // รอ poll สูงสุด 6.5 นาที (backend timeout 5.5 นาที + เผื่อเวลาเขียนผล)
   const POLL_QUERY_TIMEOUT = 8_000;            // ตัด query แต่ละรอบที่ค้างเกิน 8 วิ
 
   // จับเวลาขณะ AI กำลังถอดปริมาณ
@@ -372,8 +372,8 @@ function ScopeScreen({ project, uploadData, onConfirm, onAnalyzingChange }){
             <div style={{marginTop:24,padding:'14px 16px',background:'#fffbeb',border:'1px solid #fcd34d',
               borderRadius:8,fontSize:13,color:'#92400e',lineHeight:1.7}}>
               ⚠️ <b>ใช้เวลานานกว่าปกติ</b> — ไฟล์อาจมีหลายแผ่นหรือซับซ้อน<br/>
-              ระบบจะหยุดเองภายใน {fmtTime(POLL_MAX_WAIT_MS/1000 - elapsed)} นาที
-              หรือกดยกเลิกแล้วลองใหม่โดยลดขอบเขตงาน
+              ระบบจะหยุดเองภายใน {fmtTime(POLL_MAX_WAIT_MS/1000 - elapsed)} นาที<br/>
+              <b>หากหมดเวลา ให้กดลองใหม่ได้เลย — รอบที่ 2 จะเร็วขึ้นมากและประหยัด credit เพราะระบบใช้แคชไฟล์เดิม (ภายใน 1 ชม.)</b>
             </div>
           )}
 
