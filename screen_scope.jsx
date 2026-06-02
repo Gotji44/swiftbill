@@ -216,9 +216,27 @@ function ScopeScreen({ project, uploadData, onConfirm, onAnalyzingChange }){
           const cancelPoll = () => finish(reject, new Error('user_cancel_poll'));
           pollCancelRef.current = cancelPoll;
 
+          // ก่อนยอมแพ้ (watchdog/query fail) เช็คสถานะครั้งสุดท้าย — กันกรณีแท็บถูก throttle
+          // ทำให้ poll พลาดจังหวะ done ทั้งที่งานเสร็จแล้ว → ถ้า done ให้ resolve ไม่ reject ทิ้งผลลัพธ์
+          const giveUpOrRescue = async (rejectErr) => {
+            if(stopped) return;
+            try {
+              const { data: job } = await window.supabase
+                .from('analysis_jobs')
+                .select('status, result, error_msg')
+                .eq('id', jobId)
+                .abortSignal(AbortSignal.timeout(POLL_QUERY_TIMEOUT))
+                .single();
+              if(stopped) return;
+              if(job?.status === 'done')  { finish(resolve, job.result); return; }
+              if(job?.status === 'error') { finish(reject, new Error(job.error_msg || 'AI ประมวลผลไม่สำเร็จ')); return; }
+            } catch(_) { /* เช็คสุดท้ายล้ม → ยอมแพ้ด้วย error เดิม */ }
+            finish(reject, rejectErr);
+          };
+
           // WATCHDOG แข็ง: หยุดแน่นอนเมื่อเกินเวลาสูงสุด แม้ query รอบใดรอบหนึ่งจะค้าง
           const watchdog = setTimeout(
-            () => finish(reject, new Error('timeout — AI ใช้เวลานานเกินกำหนด กรุณาลดขอบเขตงานแล้วลองใหม่')),
+            () => giveUpOrRescue(new Error('timeout — AI ใช้เวลานานเกินกำหนด กรุณาลดขอบเขตงานแล้วลองใหม่')),
             POLL_MAX_WAIT_MS
           );
 
@@ -236,7 +254,7 @@ function ScopeScreen({ project, uploadData, onConfirm, onAnalyzingChange }){
                 // query ล้มชั่วคราว (เน็ตกระตุก/timeout) → ไม่ล้มทั้งงาน รอลองรอบถัดไป
                 consecErr++;
                 if(consecErr >= MAX_CONSEC_ERR){
-                  finish(reject, new Error('ตรวจสถานะ job ไม่สำเร็จ: ' + qErr.message));
+                  giveUpOrRescue(new Error('ตรวจสถานะ job ไม่สำเร็จ: ' + qErr.message));
                   return;
                 }
                 console.warn(`poll query error (${consecErr}/${MAX_CONSEC_ERR}) จะลองใหม่:`, qErr.message);
@@ -253,7 +271,7 @@ function ScopeScreen({ project, uploadData, onConfirm, onAnalyzingChange }){
               if(stopped) return;
               consecErr++;
               if(consecErr >= MAX_CONSEC_ERR){
-                finish(reject, new Error('ตรวจสถานะ job ไม่สำเร็จซ้ำหลายครั้ง — ' + (e?.message || 'network')));
+                giveUpOrRescue(new Error('ตรวจสถานะ job ไม่สำเร็จซ้ำหลายครั้ง — ' + (e?.message || 'network')));
                 return;
               }
               console.warn(`poll iteration failed (${consecErr}/${MAX_CONSEC_ERR}) จะลองใหม่:`, e);
