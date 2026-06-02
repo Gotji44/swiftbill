@@ -158,12 +158,26 @@ function UploadScreen({ project, onComplete, onUploadingChange }){
       setUploadedMB(0);
       setUploadStep(2);
 
-      const { data:{ session } } = await window.supabase.auth.getSession();
+      // auth.getSession() can hang indefinitely (supabase-js auth-lock) on a
+      // long-lived/stale tab → wrap in a 10s timeout so we fail cleanly.
+      const withTimeout = (p, ms, label) => Promise.race([
+        p,
+        new Promise((_, rej) => setTimeout(() => rej(new Error(label)), ms))
+      ]);
+      let session;
+      try {
+        const r0 = await withTimeout(window.supabase.auth.getSession(), 10000, 'auth_timeout');
+        session = r0?.data?.session;
+      } catch(authErr) {
+        throw new Error('เชื่อมต่อระบบยืนยันตัวตนไม่สำเร็จ (auth ค้าง) — กรุณารีเฟรชหน้าเว็บแล้วลองใหม่');
+      }
       const token = session?.access_token;
       if(!token) throw new Error('ไม่พบ session กรุณา login ใหม่');
 
       await new Promise((resolve,reject)=>{
         const xhr = new XMLHttpRequest();
+        // Without a timeout a stalled upload hangs forever at 0%. 120s ceiling.
+        xhr.timeout = 120000;
         xhr.upload.addEventListener('progress',(e)=>{
           if(e.lengthComputable){
             setUploadPercent(Math.round((e.loaded/e.total)*100));
@@ -179,6 +193,7 @@ function UploadScreen({ project, onComplete, onUploadingChange }){
         });
         xhr.addEventListener('error',()=>reject(new Error('อัปโหลดล้มเหลว: ตรวจสอบการเชื่อมต่ออินเทอร์เน็ต')));
         xhr.addEventListener('abort',()=>reject(new Error('อัปโหลดถูกยกเลิก')));
+        xhr.addEventListener('timeout',()=>reject(new Error('อัปโหลดใช้เวลานานเกินไป — ตรวจสอบอินเทอร์เน็ตแล้วลองใหม่')));
 
         const SUPABASE_URL = 'https://zokzcjbvjcxfjpcjsegx.supabase.co';
         xhr.open('POST',`${SUPABASE_URL}/storage/v1/object/drawings/${storagePath}`);
