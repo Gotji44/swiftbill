@@ -1,10 +1,44 @@
 /* ===================== Supabase Client ===================== */
 const SUPABASE_URL = 'https://zokzcjbvjcxfjpcjsegx.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_nL-wFMwEzKss2HZOylspIA_9ypFMEWv';
+// storageKey ตรงกับ default ของ supabase-js (sb-<ref>-auth-token) → ตั้งเองเพื่ออ่าน token
+// จาก localStorage ได้โดยตรงเวลา getSession() ค้าง (auth-lock)
+const SB_STORAGE_KEY = 'sb-zokzcjbvjcxfjpcjsegx-auth-token';
 
 // Initialize Supabase client
-const _supabase = window.supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+// ‼️ ปิด navigator LockManager (lock no-op) — บั๊ก supabase-js ที่ getSession() ค้างค้าง
+// (deadlock) บนแท็บที่เปิดนาน/หลายแท็บ ทำให้อัปโหลดล้มด้วย "auth ค้าง"
+const _supabase = window.supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
+  auth: {
+    storageKey: SB_STORAGE_KEY,
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: false,
+    lock: async (_name, _acquireTimeout, fn) => await fn(),
+  },
+});
 window.supabase = _supabase;
+
+// อ่าน access token แบบทนทาน: ลอง getSession (timeout สั้น) → ถ้าค้าง อ่านจาก localStorage
+async function getAccessTokenFast() {
+  try {
+    const r = await Promise.race([
+      _supabase.auth.getSession(),
+      new Promise((_, rej) => setTimeout(() => rej(new Error('to')), 4000)),
+    ]);
+    const t = r?.data?.session?.access_token;
+    if (t) return t;
+  } catch (e) { /* fall through to localStorage */ }
+  try {
+    const raw = localStorage.getItem(SB_STORAGE_KEY);
+    if (raw) {
+      const s = JSON.parse(raw);
+      return s?.access_token || s?.currentSession?.access_token || null;
+    }
+  } catch (e) {}
+  return null;
+}
+window.getAccessTokenFast = getAccessTokenFast;
 
 // ─── Projects ───────────────────────────────────────────────
 

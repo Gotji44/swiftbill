@@ -158,21 +158,11 @@ function UploadScreen({ project, onComplete, onUploadingChange }){
       setUploadedMB(0);
       setUploadStep(2);
 
-      // auth.getSession() can hang indefinitely (supabase-js auth-lock) on a
-      // long-lived/stale tab → wrap in a 10s timeout so we fail cleanly.
-      const withTimeout = (p, ms, label) => Promise.race([
-        p,
-        new Promise((_, rej) => setTimeout(() => rej(new Error(label)), ms))
-      ]);
-      let session;
-      try {
-        const r0 = await withTimeout(window.supabase.auth.getSession(), 10000, 'auth_timeout');
-        session = r0?.data?.session;
-      } catch(authErr) {
-        throw new Error('เชื่อมต่อระบบยืนยันตัวตนไม่สำเร็จ (auth ค้าง) — กรุณารีเฟรชหน้าเว็บแล้วลองใหม่');
-      }
-      const token = session?.access_token;
-      if(!token) throw new Error('ไม่พบ session กรุณา login ใหม่');
+      // auth.getSession() อาจค้าง (supabase-js auth-lock) บนแท็บที่เปิดนาน →
+      // getAccessTokenFast ลอง getSession (timeout สั้น) แล้ว fallback อ่าน token
+      // จาก localStorage แทนการ fail ทันที
+      const token = await window.getAccessTokenFast();
+      if(!token) throw new Error('ไม่พบ session กรุณา login ใหม่ (refresh หน้าเว็บ)');
 
       await new Promise((resolve,reject)=>{
         const xhr = new XMLHttpRequest();
