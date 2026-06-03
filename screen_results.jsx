@@ -1,4 +1,122 @@
 /* ===================== Results view (Step 11/12/13) ===================== */
+
+// ── คอลัมน์ของแต่ละ sheet — ให้ตรงกับ Excel (excel-export.jsx) ───────────
+// num = ทศนิยม 2 ตำแหน่ง · int = จำนวนเต็ม · ไม่ระบุ = ข้อความ · alt = field สำรอง
+const SB_SHEET_COLS = {
+  footings: { label:'ฐานราก', cols:[
+    {k:'code',label:'รหัส'}, {k:'type',label:'ประเภท'},
+    {k:'B',label:'B (m)',num:1}, {k:'L',label:'L (m)',num:1}, {k:'T',label:'T (m)',num:1},
+    {k:'count',label:'จำนวน',int:1,alt:'qty'}, {k:'depth',label:'ลึกขุด (m)',num:1},
+    {k:'fc',label:"fc'",int:1},
+    {k:'rebar_x',label:'เหล็กล่าง X',alt:'rebar'}, {k:'rebar_y',label:'เหล็กล่าง Y'},
+    {k:'piles',label:'เสาเข็ม/ฐาน',int:1},
+    {k:'concrete_m3',label:'คสล.รวม (ม³)',num:1}, {k:'formwork_m2',label:'ไม้แบบ (ม²)',num:1},
+    {k:'rebar_kg',label:'เหล็กรวม (kg)',num:1},
+  ]},
+  columns: { label:'เสา', cols:[
+    {k:'code',label:'รหัส'}, {k:'section',label:'หน้าตัด B×D (m)'},
+    {k:'height',label:'สูง (m)',num:1}, {k:'count',label:'จำนวน',int:1,alt:'qty'},
+    {k:'fc',label:"fc'",int:1}, {k:'rebar_main',label:'เหล็กยืน',alt:'rebar'}, {k:'ties',label:'ปลอก'},
+    {k:'concrete_per',label:'ปริมาตร/ตัว (ม³)',num:1,
+      derive:(r)=> Number(r.concrete_per) || (Number(r.concrete_m3||0)/(Number(r.count||r.qty)||1))},
+    {k:'concrete_m3',label:'ปริมาตรรวม (ม³)',num:1},
+    {k:'formwork_m2',label:'ไม้แบบรวม (ม²)',num:1}, {k:'rebar_kg',label:'น.น.เหล็กรวม (kg)',num:1},
+  ]},
+  beams: { label:'คาน', cols:[
+    {k:'code',label:'รหัส'}, {k:'section',label:'หน้าตัด B×D (m)'},
+    {k:'grid',label:'ตำแหน่ง (กริด)',alt:'gridline'}, {k:'length',label:'ยาว (m)',num:1},
+    {k:'count',label:'จำนวน',int:1,alt:'qty'}, {k:'rebar_top',label:'เหล็กบน',alt:'rebar'},
+    {k:'rebar_bot',label:'เหล็กล่าง'}, {k:'ties',label:'ปลอก'},
+    {k:'concrete_m3',label:'ปริมาตรรวม (ม³)',num:1,alt:'volume'},
+    {k:'formwork_m2',label:'ไม้แบบรวม (ม²)',num:1}, {k:'rebar_kg',label:'น.น.เหล็กรวม (kg)',num:1},
+    {k:'notes',label:'หมายเหตุ'},
+  ]},
+  roof: { label:'หลังคา', cols:[
+    {k:'code',label:'รหัส'}, {k:'location',label:'ตำแหน่ง/อาคาร',alt:'name'},
+    {k:'flat_area',label:'พื้นที่ฉายราบ (ม²)',num:1,alt:'volume'}, {k:'angle_deg',label:'มุมลาด (°)',int:1},
+    {k:'actual_area',label:'พื้นที่จริง (ม²)',num:1}, {k:'rafter_m',label:'จันทันเหล็ก (m)',num:1},
+    {k:'purlin_m',label:'แปเหล็ก (m)',num:1}, {k:'sag_rod',label:'Sag Rod (เส้น)',int:1},
+    {k:'weight_kg',label:'น.น.โครง (kg)',num:1,alt:'rebar_kg'}, {k:'notes',label:'หมายเหตุ'},
+  ]},
+  slabs_cip: { label:'พื้นหล่อในที่ (CIP)', cols:[
+    {k:'code',label:'รหัส'}, {k:'location',label:'ตำแหน่ง',alt:'name'},
+    {k:'grid',label:'ตำแหน่ง (กริด)',alt:'gridline'},
+    {k:'B',label:'B (m)',num:1}, {k:'L',label:'L (m)',num:1}, {k:'T',label:'T (m)',num:1},
+    {k:'count',label:'จำนวน',int:1,alt:'qty'}, {k:'rebar_short',label:'เหล็กขนานด้านสั้น',alt:'rebar'},
+    {k:'rebar_long',label:'เหล็กขนานด้านยาว'}, {k:'concrete_m3',label:'ปริมาตรรวม (ม³)',num:1,alt:'volume'},
+    {k:'notes',label:'หมายเหตุ'},
+  ]},
+  slabs_precast: { label:'พื้นสำเร็จรูป (Solid Plank)', cols:[
+    {k:'code',label:'รหัส'}, {k:'location',label:'ตำแหน่ง',alt:'name'},
+    {k:'grid',label:'ตำแหน่ง (กริด)',alt:'gridline'},
+    {k:'B',label:'B (m)',num:1}, {k:'L',label:'L (m)',num:1}, {k:'count',label:'จำนวนช่อง',int:1,alt:'qty'},
+    {k:'plank_t',label:'หนาแผ่น (m)',num:1}, {k:'topping_t',label:'หนา Topping (m)',num:1},
+    {k:'topping_rebar',label:'เหล็กเสริม Topping',alt:'wiremesh'}, {k:'fc',label:"fc' Topping",int:1},
+    {k:'load_kg_m2',label:'น้ำหนักบรรทุก (กก./ม²)',int:1}, {k:'area_m2',label:'พื้นที่รวม (ม²)',num:1,alt:'volume'},
+    {k:'notes',label:'หมายเหตุ'},
+  ]},
+};
+// หมวด (CAT_COLOR) → sheet ที่เกี่ยวข้อง
+const SB_CAT_SHEETS = {
+  'ฐานราก': ['footings'], 'เสา': ['columns'], 'คาน': ['beams'],
+  'พื้น': ['slabs_cip','slabs_precast'], 'หลังคา': ['roof'],
+};
+// คอลัมน์ทั่วไป (สำหรับหมวดที่ไม่มี sheet เฉพาะ เช่น บันได)
+const SB_GENERIC_COLS = [
+  {k:'code',label:'รหัส'}, {k:'name',label:'รายการ',alt:'notes'},
+  {k:'qty',label:'จำนวน',int:1}, {k:'unit',label:'หน่วย'},
+];
+
+function sbCell(row, col){
+  if(col.derive){
+    const dv = col.derive(row);
+    if(col.int){ const n=Number(dv); return isNaN(n)?'-':String(Math.round(n)); }
+    const n=Number(dv); return isNaN(n)?'-':fmt(n,2);
+  }
+  let v = row[col.k];
+  if((v===undefined||v===null||v==='') && col.alt) v = row[col.alt];
+  if(v===undefined||v===null||v==='') return col.num||col.int ? '0' : '-';
+  if(col.int){ const n=Number(v); return isNaN(n)?String(v):String(Math.round(n)); }
+  if(col.num){ const n=Number(v); return isNaN(n)?String(v):fmt(n,2); }
+  return String(v);
+}
+
+// สร้างกลุ่มตามหมวด อ่านจาก boqData.sheets (+ fallback items สำหรับหมวดที่ไม่มี sheet)
+function sbBuildGroups(boqData, search){
+  const sheets = boqData?.sheets || {};
+  const items = Array.isArray(boqData?.items) ? boqData.items : [];
+  const q = (search||'').toLowerCase();
+  const matchRow = (r) => !q ||
+    String(r.code||'').toLowerCase().includes(q) ||
+    String(r.location||r.name||'').toLowerCase().includes(q);
+  const out = [];
+  for(const cat of Object.keys(CAT_COLOR)){
+    const keys = SB_CAT_SHEETS[cat];
+    const blocks = [];
+    if(keys){
+      for(const sk of keys){
+        const def = SB_SHEET_COLS[sk];
+        let rows = (Array.isArray(sheets[sk]) ? sheets[sk] : []).filter(matchRow);
+        if(rows.length) blocks.push({ key:sk, label: keys.length>1 ? def.label : null, cols:def.cols, rows });
+      }
+    } else {
+      // หมวดไม่มี sheet เฉพาะ → ดึงจาก items
+      const rows = items
+        .filter(it => String(it.category||'').includes(cat))
+        .map((it,i)=>({ code:it.code||('R'+(i+1)), name:it.name||it.notes, qty:it.qty, unit:it.unit, notes:it.notes }))
+        .filter(matchRow);
+      if(rows.length) blocks.push({ key:'generic_'+cat, label:null, cols:SB_GENERIC_COLS, rows });
+    }
+    const count = blocks.reduce((a,b)=>a+b.rows.length,0);
+    if(count){
+      const units = blocks.reduce((a,b)=>a + b.rows.reduce((s,r)=>s + (Number(r.count||r.qty)||0),0), 0);
+      const vol = blocks.reduce((a,b)=>a + b.rows.reduce((s,r)=>s + (Number(r.concrete_m3||r.volume||r.area_m2)||0),0), 0);
+      out.push({ cat, color:CAT_COLOR[cat], blocks, count, units, vol });
+    }
+  }
+  return out;
+}
+
 // แปลงผลลัพธ์ BOQ จาก Claude (boqData.items) → rows ของตาราง
 function mapBoqToRows(boqData){
   if(!boqData || !Array.isArray(boqData.items) || boqData.items.length===0) return null;
@@ -71,11 +189,28 @@ function ResultsScreen({ project, boqData, onConfirm }){
   const grouped = cats.map(c=>({ cat:c, items:visRows.filter(r=>r.cat===c) })).filter(g=>g.items.length);
   const pageBoxes = rows.filter(r=>r.page===page && r.bbox);
 
+  // ── โหมดตารางตาม sheet (คอลัมน์ตรงกับ Excel) — ใช้เมื่อมี boqData.sheets ──
+  const sheetGroups = sbBuildGroups(boqData, search);
+  const useSheets = sheetGroups.length > 0;
+  const visSheetGroups = sheetGroups.filter(g => catF==='all' || g.cat===catF);
+  const sheetTotalCount = sheetGroups.reduce((a,g)=>a+g.count,0);
+  const sheetTotalUnits = sheetGroups.reduce((a,g)=>a+g.units,0);
+  const sheetCatCount = (c) => { const g=sheetGroups.find(x=>x.cat===c); return g?g.count:0; };
+
+  // selection สำหรับโหมด sheet (อ้างด้วย code)
+  const [selCode,setSelCode] = useState(null);
+  const [selCat,setSelCat] = useState(null);
+  const selectSheetRow = (cat, code) => {
+    setSelCode(code); setSelCat(cat);
+    const it = (boqData?.items||[]).find(i => code && String(i.code||'').includes(String(code)));
+    if(it?.page_num) setPage(it.page_num);
+  };
+
   const selRow = rows.find(r => r.id === sel);
   // ส่ง highlightCode ไป DrawingPlan เฉพาะ row ที่ไม่มี bbox เดิม (AI/Demo rows)
   // row ที่มี bbox อยู่แล้วจะใช้ระบบ .bbox overlay overlay ตามเดิม
-  const svgHighlight = (selRow && !selRow.bbox) ? selRow.code : null;
-  const svgHighlightCat = (selRow && !selRow.bbox) ? selRow.cat : null;
+  const svgHighlight = useSheets ? selCode : ((selRow && !selRow.bbox) ? selRow.code : null);
+  const svgHighlightCat = useSheets ? selCat : ((selRow && !selRow.bbox) ? selRow.cat : null);
 
   const selectRow = r => {
     setSel(r.id);
@@ -111,10 +246,10 @@ function ResultsScreen({ project, boqData, onConfirm }){
         </div>
         <div className="chips" style={{marginLeft:18}}>
           <button className={'chip '+(catF==='all'?'active':'')} onClick={()=>setCatF('all')}>
-            ทั้งหมด<span className="ct">{rows.length}</span>
+            ทั้งหมด<span className="ct">{useSheets ? sheetTotalCount : rows.length}</span>
           </button>
           {cats.map(c=>{
-            const n = rows.filter(r=>r.cat===c).length;
+            const n = useSheets ? sheetCatCount(c) : rows.filter(r=>r.cat===c).length;
             if(!n) return null;
             return <button key={c} className={'chip '+(catF===c?'active':'')} onClick={()=>setCatF(c)}>
               <span style={{width:8,height:8,borderRadius:3,background:CAT_COLOR[c]}}></span>{c}<span className="ct">{n}</span>
@@ -180,8 +315,45 @@ function ResultsScreen({ project, boqData, onConfirm }){
         {/* RIGHT: quantity table */}
         <div className="split-r" style={{width:rightW+'%'}}>
           <div className="qbody scrollthin">
-            {grouped.length===0 && <div className="empty"><div className="eic"><Icon name="search" size={26}/></div><div>ไม่พบรายการที่ตรงกับการค้นหา</div></div>}
-            {grouped.map(g=>{
+            {/* ── โหมด sheet: คอลัมน์ตรงกับ Excel ── */}
+            {useSheets && visSheetGroups.length===0 &&
+              <div className="empty"><div className="eic"><Icon name="search" size={26}/></div><div>ไม่พบรายการที่ตรงกับการค้นหา</div></div>}
+            {useSheets && visSheetGroups.map(g=>(
+              <div className="acc" key={g.cat}>
+                <div className={'acc-head '+(openG[g.cat]?'open':'')} onClick={()=>setOpenG(o=>({...o,[g.cat]:!o[g.cat]}))}>
+                  <span className="acc-cat" style={{background:g.color}}></span>
+                  <span className="nm">{g.cat}</span>
+                  <span className="ct">{g.units} หน่วย · {g.count} รายการ</span>
+                  {g.vol>0 && <span className="vol">รวม {fmt(g.vol,2)} ลบ.ม.</span>}
+                  <Icon name="chevR" size={16} className="chev"/>
+                </div>
+                {openG[g.cat] && g.blocks.map(b=>(
+                  <div key={b.key}>
+                    {b.label && <div style={{padding:'8px 14px 2px',fontSize:12.5,fontWeight:600,color:'var(--ink-3)'}}>{b.label}</div>}
+                    <div style={{overflowX:'auto'}}>
+                      <table className="qtable">
+                        <thead><tr>{b.cols.map(c=><th key={c.k} style={c.num||c.int?{textAlign:'right',whiteSpace:'nowrap'}:{whiteSpace:'nowrap'}}>{c.label}</th>)}</tr></thead>
+                        <tbody>
+                          {b.rows.map((r,ri)=>(
+                            <tr key={r.code+'-'+ri} className={'qrow '+(selCode===r.code&&selCat===g.cat?'on':'')}
+                              onClick={()=>selectSheetRow(g.cat, r.code)}>
+                              {b.cols.map((c,ci)=>(
+                                <td key={c.k} className={ci===0?'code':''}
+                                  style={c.num||c.int?{textAlign:'right',whiteSpace:'nowrap'}:{}}>{sbCell(r,c)}</td>
+                              ))}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ))}
+
+            {/* ── โหมดเดิม (fallback ไม่มี sheets): items ── */}
+            {!useSheets && grouped.length===0 && <div className="empty"><div className="eic"><Icon name="search" size={26}/></div><div>ไม่พบรายการที่ตรงกับการค้นหา</div></div>}
+            {!useSheets && grouped.map(g=>{
               const tVol = g.items.reduce((a,r)=>a+r.vol*(Number(r.qty)||0)/(r.qty||1),0);
               const tQty = g.items.reduce((a,r)=>a+(Number(r.qty)||0),0);
               const sumVol = g.items.reduce((a,r)=>a+r.vol,0);
@@ -263,7 +435,7 @@ function ResultsScreen({ project, boqData, onConfirm }){
 
           {/* sticky confirm bar */}
           <div className="confirm-bar">
-            <div className="info"><b>{rows.length}</b> รายการ · จากแบบ <b>{project.drawings}</b> ฉบับ · รวม {totalRows} หน่วย</div>
+            <div className="info"><b>{useSheets ? sheetTotalCount : rows.length}</b> รายการ · จากแบบ <b>{project.drawings}</b> ฉบับ · รวม {useSheets ? sheetTotalUnits : totalRows} หน่วย</div>
             <button className="btn btn-primary" onClick={()=>setConfirmOpen(true)}>ยืนยันปริมาณ <Icon name="arrowR" size={16}/></button>
           </div>
         </div>
