@@ -394,11 +394,11 @@ function ResultsScreen({ project, boqData, onConfirm }){
                                 const alignNum = c.num||c.int;
                                 return (
                                   <td key={c.k} className={ci===0?'code':''}
-                                    style={alignNum?{textAlign:'right',whiteSpace:'nowrap'}:{whiteSpace:c.k==='notes'?'normal':'nowrap'}}
-                                    onClick={editable?(e)=>e.stopPropagation():undefined}>
+                                    style={alignNum?{textAlign:'right',whiteSpace:'nowrap'}:{whiteSpace:c.k==='notes'?'normal':'nowrap'}}>
                                     {editable
                                       ? <input className={'cell-edit'+(alignNum?' num':'')} type={alignNum?'number':'text'}
-                                          value={sbRaw(r,c)} onChange={e=>editCell(r._sk,r._idx,c,e.target.value)}/>
+                                          value={sbRaw(r,c)} onChange={e=>editCell(r._sk,r._idx,c,e.target.value)}
+                                          onFocus={()=>selectSheetRow(g.cat, r.code)}/>
                                       : c.derived
                                         ? <span className="cell-derived" title="คำนวณอัตโนมัติจากสูตร">{sbCell(r,c)}</span>
                                         : sbCell(r,c)}
