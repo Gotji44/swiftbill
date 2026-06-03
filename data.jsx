@@ -246,6 +246,22 @@ const srcById = id => PRICE_SOURCES.find(s=>s.id===id);
 const confBand = c => c>=90 ? 'g' : c>=70 ? 'y' : 'r';
 const confLabel = c => c>=90 ? 'ตรงดี' : c>=70 ? 'ควรตรวจ' : 'ต้องจับคู่เอง';
 
+// ---- เติมชนิดเหล็กตามขนาด (มาตรฐานไทย) — แทน Ø ด้วย DB/RB ----
+// กฎ: Ø ≥ 10mm → DB (เหล็กข้ออ้อย SD40) · Ø ≤ 9mm → RB (เหล็กกลม SR24)
+// idempotent: ถ้าไม่มี Ø (ระบุ DB/RB มาแล้ว) คืนค่าเดิม · ข้ามตะแกรง/wiremesh
+// "2Ø12mm"→"2-DB12mm" · "Ø6mm@0.15m"→"RB6mm@0.15m" · "U-Ø6mm@0.15m"→"U-RB6mm@0.15m"
+function addSteelType(s){
+  if(s===undefined || s===null) return s;
+  const str = String(s);
+  if(!/[Øøϕφ]/.test(str)) return str;
+  if(/mesh|wire|ตะแกรง|ลวด/i.test(str)) return str;
+  return str.replace(/(\d*)\s*[Øøϕφ]\s*(\d+(?:\.\d+)?)/g, (m, cnt, dia) => {
+    const t = parseFloat(dia) >= 10 ? 'DB' : 'RB';
+    return cnt ? cnt+'-'+t+dia : t+dia;
+  });
+}
+window.addSteelType = addSteelType;
+
 Object.assign(window, {
   STATUS, BUILDING_TYPE, PROJECTS, SCOPE_ITEMS, CAT_COLOR, QUANTITIES, AUDIT,
   ASSUMPTIONS, PRICE_SOURCES, CATALOG, MATCHES, MATCH_QTY, LABOR, PCT, TEMPLATES,

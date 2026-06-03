@@ -165,7 +165,7 @@ function generateBOQExcel(project, boqData) {
   const f_data1 = footingRows.map(r => [
     r.code||'-', r.type||'เดี่ยว', r.B||'-', r.L||'-', r.T||'-',
     r.count||r.qty||0, r.depth||'-', r.lean_t||0.05, r.fc||240,
-    r.rebar_x||r.rebar||'-', r.rebar_y||'-', r.ties||'-', r.piles||1, r.notes||''
+    addSteelType(r.rebar_x||r.rebar||'-'), addSteelType(r.rebar_y||'-'), addSteelType(r.ties||'-'), r.piles||1, r.notes||''
   ]);
   const f_sums = calcFootingSummary(footingRows);
   const f_data2 = f_sums.map(r => [
@@ -188,7 +188,7 @@ function generateBOQExcel(project, boqData) {
   const c_header = ['รหัส','หน้าตัด B×D (m)','สูง (m)','จำนวน','fc\'','เหล็กยืน','ปลอก','ปริมาตร/ตัว (ม³)','ปริมาตรรวม (ม³)','ไม้แบบรวม (ม²)','น.น.เหล็กรวม (kg)'];
   const c_data = colRows.map(r => [
     r.code||'-', r.section||'-', n2(r.height)||'-', r.count||r.qty||0,
-    r.fc||240, r.rebar_main||r.rebar||'-', r.ties||'-',
+    r.fc||240, addSteelType(r.rebar_main||r.rebar||'-'), addSteelType(r.ties||'-'),
     n2(r.concrete_per || calcColVol(r)),
     n2(r.concrete_m3  || calcColVol(r)*(r.count||1)),
     n2(r.formwork_m2  || calcColForm(r)),
@@ -208,7 +208,7 @@ function generateBOQExcel(project, boqData) {
   const b_data = beamRows.map(r => [
     r.code||'-', r.section||'-', r.grid||r.gridline||r.location||'-',
     n2(r.length)||'-', r.count||r.qty||0,
-    r.rebar_top||r.rebar||'-', r.rebar_bot||'-', r.ties||'-',
+    addSteelType(r.rebar_top||r.rebar||'-'), addSteelType(r.rebar_bot||'-'), addSteelType(r.ties||'-'),
     n2(r.concrete_m3||r.volume||0),
     n2(r.formwork_m2||0),
     n2(r.rebar_kg||0),
@@ -280,7 +280,7 @@ function generateBOQExcel(project, boqData) {
     r.code||'-', r.location||r.name||'-', r.grid||r.gridline||'-',
     n2(r.B||0), n2(r.L||0), r.count||r.qty||1,
     r.plank_t||0.05, r.topping_t||0.05,
-    r.topping_rebar||r.wiremesh||'-', r.fc||210, r.load_kg_m2||'-',
+    addSteelType(r.topping_rebar||r.wiremesh||'-'), r.fc||210, r.load_kg_m2||'-',
     n2(r.area_m2||r.volume||0), r.notes||''
   ]);
   const sp_totalArea = sp_data.reduce((s,r)=>s+(Number(r[11])||0),0);
@@ -301,7 +301,7 @@ function generateBOQExcel(project, boqData) {
   const sc_data = cipRows.map(r => [
     r.code||'-', r.location||r.name||'-', r.grid||r.gridline||'-',
     n2(r.B||0), n2(r.L||0), n2(r.T||0), r.count||r.qty||1,
-    r.rebar_short||r.rebar||'-', r.rebar_long||r.rebar||'-',
+    addSteelType(r.rebar_short||r.rebar||'-'), addSteelType(r.rebar_long||r.rebar||'-'),
     n2(r.concrete_m3||r.volume||0), r.notes||''
   ]);
   const sc_total = sc_data.reduce((s,r)=>s+(Number(r[9])||0),0);

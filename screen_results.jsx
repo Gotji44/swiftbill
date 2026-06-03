@@ -9,7 +9,7 @@ const SB_SHEET_COLS = {
     {k:'B',label:'B (m)',num:1}, {k:'L',label:'L (m)',num:1}, {k:'T',label:'T (m)',num:1},
     {k:'count',label:'จำนวน',int:1,alt:'qty'}, {k:'depth',label:'ลึกขุด (m)',num:1},
     {k:'fc',label:"fc'",int:1},
-    {k:'rebar_x',label:'เหล็กล่าง X',alt:'rebar'}, {k:'rebar_y',label:'เหล็กล่าง Y'},
+    {k:'rebar_x',label:'เหล็กล่าง X',alt:'rebar',steel:1}, {k:'rebar_y',label:'เหล็กล่าง Y',steel:1},
     {k:'piles',label:'เสาเข็ม/ฐาน',int:1},
     {k:'concrete_m3',label:'คสล.รวม (ม³)',num:1,derived:1}, {k:'formwork_m2',label:'ไม้แบบ (ม²)',num:1,derived:1},
     {k:'rebar_kg',label:'เหล็กรวม (kg)',num:1},
@@ -17,7 +17,7 @@ const SB_SHEET_COLS = {
   columns: { label:'เสา', cols:[
     {k:'code',label:'รหัส'}, {k:'section',label:'หน้าตัด B×D (m)'},
     {k:'height',label:'สูง (m)',num:1}, {k:'count',label:'จำนวน',int:1,alt:'qty'},
-    {k:'fc',label:"fc'",int:1}, {k:'rebar_main',label:'เหล็กยืน',alt:'rebar'}, {k:'ties',label:'ปลอก'},
+    {k:'fc',label:"fc'",int:1}, {k:'rebar_main',label:'เหล็กยืน',alt:'rebar',steel:1}, {k:'ties',label:'ปลอก',steel:1},
     {k:'concrete_per',label:'ปริมาตร/ตัว (ม³)',num:1,derived:1,
       derive:(r)=> Number(r.concrete_per) || (Number(r.concrete_m3||0)/(Number(r.count||r.qty)||1))},
     {k:'concrete_m3',label:'ปริมาตรรวม (ม³)',num:1,derived:1},
@@ -26,8 +26,8 @@ const SB_SHEET_COLS = {
   beams: { label:'คาน', cols:[
     {k:'code',label:'รหัส'}, {k:'section',label:'หน้าตัด B×D (m)'},
     {k:'grid',label:'ตำแหน่ง (กริด)',alt:'gridline'}, {k:'length',label:'ยาว (m)',num:1},
-    {k:'count',label:'จำนวน',int:1,alt:'qty'}, {k:'rebar_top',label:'เหล็กบน',alt:'rebar'},
-    {k:'rebar_bot',label:'เหล็กล่าง'}, {k:'ties',label:'ปลอก'},
+    {k:'count',label:'จำนวน',int:1,alt:'qty'}, {k:'rebar_top',label:'เหล็กบน',alt:'rebar',steel:1},
+    {k:'rebar_bot',label:'เหล็กล่าง',steel:1}, {k:'ties',label:'ปลอก',steel:1},
     {k:'concrete_m3',label:'ปริมาตรรวม (ม³)',num:1,derived:1,alt:'volume'},
     {k:'formwork_m2',label:'ไม้แบบรวม (ม²)',num:1,derived:1}, {k:'rebar_kg',label:'น.น.เหล็กรวม (kg)',num:1},
     {k:'notes',label:'หมายเหตุ'},
@@ -43,8 +43,8 @@ const SB_SHEET_COLS = {
     {k:'code',label:'รหัส'}, {k:'location',label:'ตำแหน่ง',alt:'name'},
     {k:'grid',label:'ตำแหน่ง (กริด)',alt:'gridline'},
     {k:'B',label:'B (m)',num:1}, {k:'L',label:'L (m)',num:1}, {k:'T',label:'T (m)',num:1},
-    {k:'count',label:'จำนวน',int:1,alt:'qty'}, {k:'rebar_short',label:'เหล็กขนานด้านสั้น',alt:'rebar'},
-    {k:'rebar_long',label:'เหล็กขนานด้านยาว'}, {k:'concrete_m3',label:'ปริมาตรรวม (ม³)',num:1,derived:1,alt:'volume'},
+    {k:'count',label:'จำนวน',int:1,alt:'qty'}, {k:'rebar_short',label:'เหล็กขนานด้านสั้น',alt:'rebar',steel:1},
+    {k:'rebar_long',label:'เหล็กขนานด้านยาว',steel:1}, {k:'concrete_m3',label:'ปริมาตรรวม (ม³)',num:1,derived:1,alt:'volume'},
     {k:'notes',label:'หมายเหตุ'},
   ]},
   slabs_precast: { label:'พื้นสำเร็จรูป (Solid Plank)', cols:[
@@ -52,7 +52,7 @@ const SB_SHEET_COLS = {
     {k:'grid',label:'ตำแหน่ง (กริด)',alt:'gridline'},
     {k:'B',label:'B (m)',num:1}, {k:'L',label:'L (m)',num:1}, {k:'count',label:'จำนวนช่อง',int:1,alt:'qty'},
     {k:'plank_t',label:'หนาแผ่น (m)',num:1}, {k:'topping_t',label:'หนา Topping (m)',num:1},
-    {k:'topping_rebar',label:'เหล็กเสริม Topping',alt:'wiremesh'}, {k:'fc',label:"fc' Topping",int:1},
+    {k:'topping_rebar',label:'เหล็กเสริม Topping',alt:'wiremesh',steel:1}, {k:'fc',label:"fc' Topping",int:1},
     {k:'load_kg_m2',label:'น้ำหนักบรรทุก (กก./ม²)',int:1}, {k:'area_m2',label:'พื้นที่รวม (ม²)',num:1,derived:1,alt:'volume'},
     {k:'notes',label:'หมายเหตุ'},
   ]},
@@ -397,7 +397,7 @@ function ResultsScreen({ project, boqData, onConfirm }){
                                     style={alignNum?{textAlign:'right',whiteSpace:'nowrap'}:{whiteSpace:c.k==='notes'?'normal':'nowrap'}}>
                                     {editable
                                       ? <input className={'cell-edit'+(alignNum?' num':'')} type={alignNum?'number':'text'}
-                                          value={sbRaw(r,c)} onChange={e=>editCell(r._sk,r._idx,c,e.target.value)}
+                                          value={c.steel ? addSteelType(sbRaw(r,c)) : sbRaw(r,c)} onChange={e=>editCell(r._sk,r._idx,c,e.target.value)}
                                           onFocus={()=>selectSheetRow(g.cat, r.code)}/>
                                       : c.derived
                                         ? <span className="cell-derived" title="คำนวณอัตโนมัติจากสูตร">{sbCell(r,c)}</span>
