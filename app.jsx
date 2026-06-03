@@ -295,7 +295,7 @@ function App(){
             }
             setScreen('results'); }}/>}
         {screen==='results' && <ResultsScreen project={project} boqData={boqData}
-          onConfirm={()=>{ if(project.pricing){ setScreen('pricing'); } else { setProjectStatus(project,'completed'); setScreen('delivery'); } }}/>}
+          onConfirm={(editedSheets)=>{ if(editedSheets) setBoqData(bd=>({ ...bd, sheets:editedSheets })); if(project.pricing){ setScreen('pricing'); } else { setProjectStatus(project,'completed'); setScreen('delivery'); } }}/>}
         {screen==='pricing' && <PricingScreen project={project} onConfirm={()=>{ setProjectStatus(project,'completed'); setScreen('delivery'); }}/>}
         {screen==='delivery' && <DeliveryScreen project={project} boqData={boqData} onBack={backToDash}/>}
         {screen==='templates' && <TemplatesScreen/>}

@@ -335,6 +335,16 @@ input,select,textarea{font-family:inherit}
   font-size:12.5px;text-align:left;background:transparent;color:var(--ink)}
 .qrow:hover .qedit{border-color:var(--border-2);background:#fff}
 .qedit:focus{outline:none;border-color:var(--primary);background:#fff;box-shadow:0 0 0 2px rgba(37,99,235,.15)}
+/* ช่องแก้ไขในตารางผลลัพธ์ (โหมด sheet) */
+.cell-edit{width:92px;border:1px solid transparent;border-radius:6px;padding:3px 6px;font-size:13px;
+  background:transparent;color:var(--ink)}
+.cell-edit.num{width:62px;font-family:var(--mono);text-align:right}
+.qrow:hover .cell-edit{border-color:var(--border-2);background:#fff}
+.cell-edit:focus{outline:none;border-color:var(--primary);background:#fff;box-shadow:0 0 0 2px rgba(37,99,235,.15)}
+.cell-edit[type=number]::-webkit-inner-spin-button{opacity:.35}
+/* ช่องที่คำนวณอัตโนมัติจากสูตร (อ่านอย่างเดียว) */
+.cell-derived{color:var(--ink-2);font-family:var(--mono);background:rgba(37,99,235,.06);
+  padding:2px 7px;border-radius:5px;display:inline-block}
 .rowact{display:flex;gap:2px;opacity:0;transition:opacity .1s}
 .qrow:hover .rowact{opacity:1}
 .minibtn{width:26px;height:26px;border-radius:7px;display:flex;align-items:center;justify-content:center;color:var(--ink-4)}

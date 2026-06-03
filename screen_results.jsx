@@ -2,6 +2,7 @@
 
 // ── คอลัมน์ของแต่ละ sheet — ให้ตรงกับ Excel (excel-export.jsx) ───────────
 // num = ทศนิยม 2 ตำแหน่ง · int = จำนวนเต็ม · ไม่ระบุ = ข้อความ · alt = field สำรอง
+// derived = ช่องที่คำนวณอัตโนมัติจากสูตร (แก้มือไม่ได้) ส่วนช่องอื่นแก้ได้
 const SB_SHEET_COLS = {
   footings: { label:'ฐานราก', cols:[
     {k:'code',label:'รหัส'}, {k:'type',label:'ประเภท'},
@@ -10,31 +11,31 @@ const SB_SHEET_COLS = {
     {k:'fc',label:"fc'",int:1},
     {k:'rebar_x',label:'เหล็กล่าง X',alt:'rebar'}, {k:'rebar_y',label:'เหล็กล่าง Y'},
     {k:'piles',label:'เสาเข็ม/ฐาน',int:1},
-    {k:'concrete_m3',label:'คสล.รวม (ม³)',num:1}, {k:'formwork_m2',label:'ไม้แบบ (ม²)',num:1},
+    {k:'concrete_m3',label:'คสล.รวม (ม³)',num:1,derived:1}, {k:'formwork_m2',label:'ไม้แบบ (ม²)',num:1,derived:1},
     {k:'rebar_kg',label:'เหล็กรวม (kg)',num:1},
   ]},
   columns: { label:'เสา', cols:[
     {k:'code',label:'รหัส'}, {k:'section',label:'หน้าตัด B×D (m)'},
     {k:'height',label:'สูง (m)',num:1}, {k:'count',label:'จำนวน',int:1,alt:'qty'},
     {k:'fc',label:"fc'",int:1}, {k:'rebar_main',label:'เหล็กยืน',alt:'rebar'}, {k:'ties',label:'ปลอก'},
-    {k:'concrete_per',label:'ปริมาตร/ตัว (ม³)',num:1,
+    {k:'concrete_per',label:'ปริมาตร/ตัว (ม³)',num:1,derived:1,
       derive:(r)=> Number(r.concrete_per) || (Number(r.concrete_m3||0)/(Number(r.count||r.qty)||1))},
-    {k:'concrete_m3',label:'ปริมาตรรวม (ม³)',num:1},
-    {k:'formwork_m2',label:'ไม้แบบรวม (ม²)',num:1}, {k:'rebar_kg',label:'น.น.เหล็กรวม (kg)',num:1},
+    {k:'concrete_m3',label:'ปริมาตรรวม (ม³)',num:1,derived:1},
+    {k:'formwork_m2',label:'ไม้แบบรวม (ม²)',num:1,derived:1}, {k:'rebar_kg',label:'น.น.เหล็กรวม (kg)',num:1},
   ]},
   beams: { label:'คาน', cols:[
     {k:'code',label:'รหัส'}, {k:'section',label:'หน้าตัด B×D (m)'},
     {k:'grid',label:'ตำแหน่ง (กริด)',alt:'gridline'}, {k:'length',label:'ยาว (m)',num:1},
     {k:'count',label:'จำนวน',int:1,alt:'qty'}, {k:'rebar_top',label:'เหล็กบน',alt:'rebar'},
     {k:'rebar_bot',label:'เหล็กล่าง'}, {k:'ties',label:'ปลอก'},
-    {k:'concrete_m3',label:'ปริมาตรรวม (ม³)',num:1,alt:'volume'},
-    {k:'formwork_m2',label:'ไม้แบบรวม (ม²)',num:1}, {k:'rebar_kg',label:'น.น.เหล็กรวม (kg)',num:1},
+    {k:'concrete_m3',label:'ปริมาตรรวม (ม³)',num:1,derived:1,alt:'volume'},
+    {k:'formwork_m2',label:'ไม้แบบรวม (ม²)',num:1,derived:1}, {k:'rebar_kg',label:'น.น.เหล็กรวม (kg)',num:1},
     {k:'notes',label:'หมายเหตุ'},
   ]},
   roof: { label:'หลังคา', cols:[
     {k:'code',label:'รหัส'}, {k:'location',label:'ตำแหน่ง/อาคาร',alt:'name'},
     {k:'flat_area',label:'พื้นที่ฉายราบ (ม²)',num:1,alt:'volume'}, {k:'angle_deg',label:'มุมลาด (°)',int:1},
-    {k:'actual_area',label:'พื้นที่จริง (ม²)',num:1}, {k:'rafter_m',label:'จันทันเหล็ก (m)',num:1},
+    {k:'actual_area',label:'พื้นที่จริง (ม²)',num:1,derived:1}, {k:'rafter_m',label:'จันทันเหล็ก (m)',num:1},
     {k:'purlin_m',label:'แปเหล็ก (m)',num:1}, {k:'sag_rod',label:'Sag Rod (เส้น)',int:1},
     {k:'weight_kg',label:'น.น.โครง (kg)',num:1,alt:'rebar_kg'}, {k:'notes',label:'หมายเหตุ'},
   ]},
@@ -43,7 +44,7 @@ const SB_SHEET_COLS = {
     {k:'grid',label:'ตำแหน่ง (กริด)',alt:'gridline'},
     {k:'B',label:'B (m)',num:1}, {k:'L',label:'L (m)',num:1}, {k:'T',label:'T (m)',num:1},
     {k:'count',label:'จำนวน',int:1,alt:'qty'}, {k:'rebar_short',label:'เหล็กขนานด้านสั้น',alt:'rebar'},
-    {k:'rebar_long',label:'เหล็กขนานด้านยาว'}, {k:'concrete_m3',label:'ปริมาตรรวม (ม³)',num:1,alt:'volume'},
+    {k:'rebar_long',label:'เหล็กขนานด้านยาว'}, {k:'concrete_m3',label:'ปริมาตรรวม (ม³)',num:1,derived:1,alt:'volume'},
     {k:'notes',label:'หมายเหตุ'},
   ]},
   slabs_precast: { label:'พื้นสำเร็จรูป (Solid Plank)', cols:[
@@ -52,7 +53,7 @@ const SB_SHEET_COLS = {
     {k:'B',label:'B (m)',num:1}, {k:'L',label:'L (m)',num:1}, {k:'count',label:'จำนวนช่อง',int:1,alt:'qty'},
     {k:'plank_t',label:'หนาแผ่น (m)',num:1}, {k:'topping_t',label:'หนา Topping (m)',num:1},
     {k:'topping_rebar',label:'เหล็กเสริม Topping',alt:'wiremesh'}, {k:'fc',label:"fc' Topping",int:1},
-    {k:'load_kg_m2',label:'น้ำหนักบรรทุก (กก./ม²)',int:1}, {k:'area_m2',label:'พื้นที่รวม (ม²)',num:1,alt:'volume'},
+    {k:'load_kg_m2',label:'น้ำหนักบรรทุก (กก./ม²)',int:1}, {k:'area_m2',label:'พื้นที่รวม (ม²)',num:1,derived:1,alt:'volume'},
     {k:'notes',label:'หมายเหตุ'},
   ]},
 };
@@ -67,6 +68,24 @@ const SB_GENERIC_COLS = [
   {k:'qty',label:'จำนวน',int:1}, {k:'unit',label:'หน่วย'},
 ];
 
+// ── สูตรเรขาคณิตอัตโนมัติ (mirror excel-export.jsx) — เหล็ก (rebar_kg/weight_kg) แก้มือ ──
+const sbR2 = (n) => Math.round((Number(n)||0)*100)/100;
+const sbSection = (s) => { const p=String(s||'0.3×0.4').split(/[×x]/); return [Number(p[0])||0, Number(p[1])||0]; };
+const SB_RECOMPUTE = {
+  footings:(r)=>{ const B=+r.B||0,L=+r.L||0,T=+r.T||0,n=+(r.count??r.qty)||0,d=+r.depth||0,lt=+r.lean_t||0.05;
+    r.concrete_m3=sbR2(B*L*T*n); r.formwork_m2=sbR2(2*(B+L)*T*n);
+    r.excavation_m3=sbR2((B+1)*(L+1)*d*n); r.lean_m3=sbR2((B+0.1)*(L+0.1)*lt*n); },
+  columns:(r)=>{ const [B,D]=sbSection(r.section); const h=+r.height||0,n=+(r.count??r.qty)||0;
+    r.concrete_per=sbR2(B*D*h); r.concrete_m3=sbR2(B*D*h*n); r.formwork_m2=sbR2(2*(B+D)*h*n); },
+  beams:(r)=>{ const [B,D]=sbSection(r.section); const L=+r.length||0,n=+(r.count??r.qty)||0;
+    r.concrete_m3=sbR2(B*D*L*n); r.formwork_m2=sbR2((2*D+B)*L*n); },
+  slabs_cip:(r)=>{ const B=+r.B||0,L=+r.L||0,T=+r.T||0,n=+(r.count??r.qty)||1;
+    r.concrete_m3=sbR2(B*L*T*n); },
+  slabs_precast:(r)=>{ const B=+r.B||0,L=+r.L||0,n=+(r.count??r.qty)||1; r.area_m2=sbR2(B*L*n); },
+  roof:(r)=>{ const fa=+r.flat_area||+r.volume||0,a=+r.angle_deg||30;
+    r.actual_area=sbR2(fa/Math.cos(a*Math.PI/180)); },
+};
+
 function sbCell(row, col){
   if(col.derive){
     const dv = col.derive(row);
@@ -80,11 +99,18 @@ function sbCell(row, col){
   if(col.num){ const n=Number(v); return isNaN(n)?String(v):fmt(n,2); }
   return String(v);
 }
+// ค่าดิบสำหรับช่องแก้ไข (ไม่ฟอร์แมต ให้พิมพ์ได้ง่าย)
+function sbRaw(row, col){
+  let v = row[col.k];
+  if((v===undefined||v===null||v==='') && col.alt) v = row[col.alt];
+  return (v===undefined||v===null) ? '' : v;
+}
 
-// สร้างกลุ่มตามหมวด อ่านจาก boqData.sheets (+ fallback items สำหรับหมวดที่ไม่มี sheet)
-function sbBuildGroups(boqData, search){
-  const sheets = boqData?.sheets || {};
-  const items = Array.isArray(boqData?.items) ? boqData.items : [];
+// สร้างกลุ่มตามหมวด อ่านจาก sheets (editable) + fallback items สำหรับหมวดที่ไม่มี sheet
+// แต่ละ row แนบ _sk (sheet key) + _idx (ตำแหน่งใน array จริง) เพื่อใช้แก้ไข
+function sbBuildGroups(sheets, items, search){
+  sheets = sheets || {};
+  items = Array.isArray(items) ? items : [];
   const q = (search||'').toLowerCase();
   const matchRow = (r) => !q ||
     String(r.code||'').toLowerCase().includes(q) ||
@@ -96,16 +122,17 @@ function sbBuildGroups(boqData, search){
     if(keys){
       for(const sk of keys){
         const def = SB_SHEET_COLS[sk];
-        let rows = (Array.isArray(sheets[sk]) ? sheets[sk] : []).filter(matchRow);
-        if(rows.length) blocks.push({ key:sk, label: keys.length>1 ? def.label : null, cols:def.cols, rows });
+        const all = Array.isArray(sheets[sk]) ? sheets[sk] : [];
+        const rows = all.map((r,idx)=>({ ...r, _sk:sk, _idx:idx })).filter(matchRow);
+        if(rows.length) blocks.push({ key:sk, label: keys.length>1 ? def.label : null, cols:def.cols, rows, editable:true });
       }
     } else {
-      // หมวดไม่มี sheet เฉพาะ → ดึงจาก items
+      // หมวดไม่มี sheet เฉพาะ → ดึงจาก items (อ่านอย่างเดียว)
       const rows = items
         .filter(it => String(it.category||'').includes(cat))
         .map((it,i)=>({ code:it.code||('R'+(i+1)), name:it.name||it.notes, qty:it.qty, unit:it.unit, notes:it.notes }))
         .filter(matchRow);
-      if(rows.length) blocks.push({ key:'generic_'+cat, label:null, cols:SB_GENERIC_COLS, rows });
+      if(rows.length) blocks.push({ key:'generic_'+cat, label:null, cols:SB_GENERIC_COLS, rows, editable:false });
     }
     const count = blocks.reduce((a,b)=>a+b.rows.length,0);
     if(count){
@@ -189,13 +216,31 @@ function ResultsScreen({ project, boqData, onConfirm }){
   const grouped = cats.map(c=>({ cat:c, items:visRows.filter(r=>r.cat===c) })).filter(g=>g.items.length);
   const pageBoxes = rows.filter(r=>r.page===page && r.bbox);
 
-  // ── โหมดตารางตาม sheet (คอลัมน์ตรงกับ Excel) — ใช้เมื่อมี boqData.sheets ──
-  const sheetGroups = sbBuildGroups(boqData, search);
+  // ── โหมดตารางตาม sheet (คอลัมน์ตรงกับ Excel + แก้ค่าได้ + สูตรอัตโนมัติ) ──
+  // สำเนาแก้ไขได้ของ sheets (clone จาก AI) — เป็น source of truth ของหน้านี้
+  const [sheetState,setSheetState] = useState(()=>
+    boqData?.sheets ? JSON.parse(JSON.stringify(boqData.sheets)) : null);
+  const [dirty,setDirty] = useState(false);
+
+  const sheetGroups = sbBuildGroups(sheetState, boqData?.items, search);
   const useSheets = sheetGroups.length > 0;
   const visSheetGroups = sheetGroups.filter(g => catF==='all' || g.cat===catF);
   const sheetTotalCount = sheetGroups.reduce((a,g)=>a+g.count,0);
   const sheetTotalUnits = sheetGroups.reduce((a,g)=>a+g.units,0);
   const sheetCatCount = (c) => { const g=sheetGroups.find(x=>x.cat===c); return g?g.count:0; };
+
+  // แก้ค่าช่อง input → อัปเดต sheetState + คำนวณสูตรเรขาคณิตใหม่
+  const editCell = (sk, idx, col, value) => {
+    // เก็บค่าดิบ (string) เพื่อให้พิมพ์ทศนิยมได้ลื่น — สูตร recompute ใช้ Number() แปลงเอง
+    setSheetState(prev=>{
+      const arr = (prev[sk]||[]).slice();
+      const row = { ...arr[idx], [col.k]: value };
+      if(SB_RECOMPUTE[sk]) SB_RECOMPUTE[sk](row);
+      arr[idx] = row;
+      return { ...prev, [sk]: arr };
+    });
+    setDirty(true);
+  };
 
   // selection สำหรับโหมด sheet (อ้างด้วย code)
   const [selCode,setSelCode] = useState(null);
@@ -261,7 +306,7 @@ function ResultsScreen({ project, boqData, onConfirm }){
             <Icon name="search" size={16}/>
             <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="ค้นหารหัสหรือชื่อรายการ…"/>
           </div>
-          <button className="btn btn-soft" onClick={()=>setAddOpen(true)}><Icon name="plus" size={16}/> เพิ่มรายการ</button>
+          {!useSheets && <button className="btn btn-soft" onClick={()=>setAddOpen(true)}><Icon name="plus" size={16}/> เพิ่มรายการ</button>}
         </div>
       </div>
 
@@ -315,6 +360,13 @@ function ResultsScreen({ project, boqData, onConfirm }){
         {/* RIGHT: quantity table */}
         <div className="split-r" style={{width:rightW+'%'}}>
           <div className="qbody scrollthin">
+            {useSheets && (
+              <div style={{padding:'8px 14px',fontSize:12,color:'var(--ink-3)',display:'flex',alignItems:'center',gap:8,flexWrap:'wrap',borderBottom:'1px solid var(--border)'}}>
+                <Icon name="info" size={13}/>
+                <span>คลิกที่ช่องเพื่อแก้ไขได้ · ช่องที่มี <b style={{color:'var(--primary)'}}>ƒ</b> คำนวณอัตโนมัติจากสูตร (คอนกรีต/ไม้แบบ/พื้นที่)</span>
+                {dirty && <span className="badge b-orange" style={{fontSize:11}}>แก้ไขแล้ว — ค่าจะไหลไป Excel เมื่อยืนยัน</span>}
+              </div>
+            )}
             {/* ── โหมด sheet: คอลัมน์ตรงกับ Excel ── */}
             {useSheets && visSheetGroups.length===0 &&
               <div className="empty"><div className="eic"><Icon name="search" size={26}/></div><div>ไม่พบรายการที่ตรงกับการค้นหา</div></div>}
@@ -332,15 +384,27 @@ function ResultsScreen({ project, boqData, onConfirm }){
                     {b.label && <div style={{padding:'8px 14px 2px',fontSize:12.5,fontWeight:600,color:'var(--ink-3)'}}>{b.label}</div>}
                     <div style={{overflowX:'auto'}}>
                       <table className="qtable">
-                        <thead><tr>{b.cols.map(c=><th key={c.k} style={c.num||c.int?{textAlign:'right',whiteSpace:'nowrap'}:{whiteSpace:'nowrap'}}>{c.label}</th>)}</tr></thead>
+                        <thead><tr>{b.cols.map(c=><th key={c.k} style={{textAlign:c.num||c.int?'right':'left',whiteSpace:'nowrap'}}>{c.label}{c.derived?<span title="คำนวณอัตโนมัติ" style={{color:'var(--primary)',marginLeft:3}}>ƒ</span>:''}</th>)}</tr></thead>
                         <tbody>
                           {b.rows.map((r,ri)=>(
                             <tr key={r.code+'-'+ri} className={'qrow '+(selCode===r.code&&selCat===g.cat?'on':'')}
                               onClick={()=>selectSheetRow(g.cat, r.code)}>
-                              {b.cols.map((c,ci)=>(
-                                <td key={c.k} className={ci===0?'code':''}
-                                  style={c.num||c.int?{textAlign:'right',whiteSpace:'nowrap'}:{}}>{sbCell(r,c)}</td>
-                              ))}
+                              {b.cols.map((c,ci)=>{
+                                const editable = b.editable && !c.derived;
+                                const alignNum = c.num||c.int;
+                                return (
+                                  <td key={c.k} className={ci===0?'code':''}
+                                    style={alignNum?{textAlign:'right',whiteSpace:'nowrap'}:{whiteSpace:c.k==='notes'?'normal':'nowrap'}}
+                                    onClick={editable?(e)=>e.stopPropagation():undefined}>
+                                    {editable
+                                      ? <input className={'cell-edit'+(alignNum?' num':'')} type={alignNum?'number':'text'}
+                                          value={sbRaw(r,c)} onChange={e=>editCell(r._sk,r._idx,c,e.target.value)}/>
+                                      : c.derived
+                                        ? <span className="cell-derived" title="คำนวณอัตโนมัติจากสูตร">{sbCell(r,c)}</span>
+                                        : sbCell(r,c)}
+                                  </td>
+                                );
+                              })}
                             </tr>
                           ))}
                         </tbody>
@@ -456,7 +520,7 @@ function ResultsScreen({ project, boqData, onConfirm }){
       {confirmOpen && (
         <Modal title="ยืนยันปริมาณทั้งหมด?" onClose={()=>setConfirmOpen(false)}
           foot={<><button className="btn btn-ghost" onClick={()=>setConfirmOpen(false)}>กลับไปแก้ไข</button>
-            <button className="btn btn-primary" onClick={()=>{ setConfirmOpen(false); onConfirm(); }}>ยืนยัน {project.pricing?'→ ประเมินราคา':'→ ส่งออก'}</button></>}>
+            <button className="btn btn-primary" onClick={()=>{ setConfirmOpen(false); onConfirm(useSheets ? sheetState : undefined); }}>ยืนยัน {project.pricing?'→ ประเมินราคา':'→ ส่งออก'}</button></>}>
           <div style={{fontSize:14,color:'var(--ink-2)',lineHeight:1.6}}>
             ยืนยันปริมาณทั้งหมด <b style={{color:'var(--ink)'}}>{rows.length} รายการ</b>?
             หลังยืนยันจะไม่สามารถแก้ไขในขั้นนี้ได้
