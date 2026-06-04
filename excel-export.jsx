@@ -173,7 +173,7 @@ function generateBOQExcel(project, boqData) {
     r.excavation_m3, r.sand_m3, r.formwork_m2, r.rebar_bot_kg, r.rebar_tie_kg, r.rebar_kg
   ]);
   const f_total = sumRow(f_data2, [1,2,3,4,5,6,7,8,9,10]);
-  buildAndStyle(wb, '05_ฐานราก', [
+  if (footingRows.length) buildAndStyle(wb, '05_ฐานราก', [
     T('Sheet 05 — ฐานราก'),
     BL(),
     H(f_header1), ...f_data1.map(D),
@@ -195,7 +195,7 @@ function generateBOQExcel(project, boqData) {
     n2(r.rebar_kg     || 0)
   ]);
   const c_total = sumRow(c_data, [7,8,9,10]);
-  buildAndStyle(wb, '03_เสา', [
+  if (colRows.length) buildAndStyle(wb, '03_เสา', [
     T('Sheet 03 — เสา'),
     BL(),
     H(c_header), ...c_data.map(D),
@@ -215,7 +215,7 @@ function generateBOQExcel(project, boqData) {
     r.notes||''
   ]);
   const b_total = sumRow(b_data, [8,9,10]);
-  buildAndStyle(wb, '04_คาน', [
+  if (beamRows.length) buildAndStyle(wb, '04_คาน', [
     T('Sheet 04 — คาน'),
     BL(),
     H(b_header), ...b_data.map(D),
@@ -266,7 +266,7 @@ function generateBOQExcel(project, boqData) {
       TT(['รวม','','','','',n2(rm_total[5]),n2(rm_total[6]),''])
     );
   }
-  buildAndStyle(wb, '07_หลังคา', roofLayout, [8,20,12,8,12,12,12,10,12,12,20]);
+  if (roofRows.length || rm_data.length) buildAndStyle(wb, '07_หลังคา', roofLayout, [8,20,12,8,12,12,12,10,12,12,20]);
 
   // ── Sheet 08: พื้นสำเร็จ ─────────────────────────────────────
   const precastRows = sh.slabs_precast || itemsToSheetRows(items, 'พื้น', 'สำเร็จ');
@@ -285,7 +285,7 @@ function generateBOQExcel(project, boqData) {
   ]);
   const sp_totalArea = sp_data.reduce((s,r)=>s+(Number(r[11])||0),0);
   const sp_toppingT = (precastRows[0] && precastRows[0].topping_t) || 0.05;
-  buildAndStyle(wb, '08_พื้นสำเร็จ', [
+  if (precastRows.length) buildAndStyle(wb, '08_พื้นสำเร็จ', [
     T('Sheet 08 — พื้นสำเร็จรูป (Solid Plank)'),
     BL(),
     H(sp_header), ...sp_data.map(D),
@@ -305,7 +305,7 @@ function generateBOQExcel(project, boqData) {
     n2(r.concrete_m3||r.volume||0), r.notes||''
   ]);
   const sc_total = sc_data.reduce((s,r)=>s+(Number(r[9])||0),0);
-  buildAndStyle(wb, '09_พื้นหล่อในที่', [
+  if (cipRows.length) buildAndStyle(wb, '09_พื้นหล่อในที่', [
     T('Sheet 09 — พื้นหล่อในที่ (CIP)'),
     BL(),
     H(sc_header), ...sc_data.map(D),
