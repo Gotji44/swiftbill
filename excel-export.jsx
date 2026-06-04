@@ -160,11 +160,11 @@ function generateBOQExcel(project, boqData) {
 
   // ── Sheet 05: ฐานราก ─────────────────────────────────────────
   const footingRows = sh.footings || itemsToSheetRows(items, 'ฐานราก');
-  const f_header1 = ['รหัส','ประเภท','B (m)','L (m)','T (m)','จำนวน','ลึกขุด (m)','หนา Lean','fc\'','เหล็กล่าง X','เหล็กล่าง Y','ปลอก/รัด','เสาเข็ม/ฐาน','หมายเหตุ'];
+  const f_header1 = ['รหัส','ประเภท','B (m)','L (m)','T (m)','จำนวน','ลึกขุด (m)','หนา Lean','หนา ทราย','fc\'','เหล็กล่าง X','เหล็กล่าง Y','ปลอก/รัด','เสาเข็ม/ฐาน','หมายเหตุ'];
   const f_header2 = ['รหัส','พื้นที่ฐาน (ม²)','คสล./ฐาน (ม³)','คสล.รวม (ม³)','Lean (ม³)','ขุดดิน (ม³)','ทรายอัดแน่น (ม³)','ไม้แบบ (ม²)','เหล็กล่าง (kg)','เหล็กรัด (kg)','เหล็กรวม (kg)'];
   const f_data1 = footingRows.map(r => [
     r.code||'-', r.type||'เดี่ยว', r.B||'-', r.L||'-', r.T||'-',
-    r.count||r.qty||0, r.depth||'-', r.lean_t||0.05, r.fc||240,
+    r.count||r.qty||0, r.depth||'-', r.lean_t||0.05, r.sand_t||0.05, r.fc||240,
     addSteelType(r.rebar_x||r.rebar||'-'), addSteelType(r.rebar_y||'-'), addSteelType(r.ties||'-'), r.piles||1, r.notes||''
   ]);
   const f_sums = calcFootingSummary(footingRows);
@@ -181,7 +181,7 @@ function generateBOQExcel(project, boqData) {
     SB('สรุปปริมาณ (Summary)'),
     H(f_header2), ...f_data2.map(D),
     TT(['รวม','','',...f_total.slice(2)]),
-  ], [8,10,6,6,6,7,8,8,7,14,14,12,10,20]);
+  ], [8,10,6,6,6,7,8,8,8,7,14,14,12,10,20]);
 
   // ── Sheet 03: เสา ────────────────────────────────────────────
   const colRows = sh.columns || itemsToSheetRows(items, 'เสา');
@@ -418,18 +418,20 @@ function calcFootingSummary(rows) {
     const B = Number(r.B)||1, L = Number(r.L)||1, T = Number(r.T)||0.5;
     const n = Number(r.count||r.qty)||1;
     const lean_t = Number(r.lean_t)||0.05;
+    const sand_t = Number(r.sand_t)||0.05;
     const depth  = Number(r.depth)||1.2;
     const area   = n2(B*L);
     const cpf    = n2(B*L*T);
     const c_m3   = r.concrete_m3 ? n2(r.concrete_m3) : n2(cpf*n);
     const lean   = r.lean_m3    ? n2(r.lean_m3)    : n2((B+0.1)*(L+0.1)*lean_t*n);
+    const sand   = r.sand_m3    ? n2(r.sand_m3)    : n2((B+0.1)*(L+0.1)*sand_t*n);
     const excav  = r.excavation_m3 ? n2(r.excavation_m3) : n2((B+1)*(L+1)*depth*n);
     const form   = r.formwork_m2   ? n2(r.formwork_m2)   : n2(2*(B+L)*T*n);
     const rb_bot = r.rebar_kg  ? n2(r.rebar_kg)  : 0;
     const rb_tie = r.rebar_tie_kg  ? n2(r.rebar_tie_kg) : 0;
     return {
       code: r.code||'-', area_m2: area, concrete_per: cpf, concrete_m3: c_m3,
-      lean_m3: lean, excavation_m3: excav, sand_m3: lean,
+      lean_m3: lean, excavation_m3: excav, sand_m3: sand,
       formwork_m2: form, rebar_bot_kg: rb_bot, rebar_tie_kg: rb_tie,
       rebar_kg: n2(rb_bot+rb_tie)
     };
