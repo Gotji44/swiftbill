@@ -234,7 +234,21 @@ function ResultsScreen({ project, boqData, onConfirm }){
     // เก็บค่าดิบ (string) เพื่อให้พิมพ์ทศนิยมได้ลื่น — สูตร recompute ใช้ Number() แปลงเอง
     setSheetState(prev=>{
       const arr = (prev[sk]||[]).slice();
-      const row = { ...arr[idx], [col.k]: value };
+      const old = arr[idx];
+      const row = { ...old, [col.k]: value };
+      // แก้ "จำนวน" → scale เหล็กตามสัดส่วน (เหล็กเป็นค่าแก้มือ ไม่อยู่ในสูตรเรขาคณิต)
+      // ให้เหมือน reconcile ฝั่ง Edge Function: ปรับ count แล้วปริมาณเหล็กสเกลตาม
+      if(col.k==='count' || col.k==='qty'){
+        const oldN = Number(old.count ?? old.qty) || 0;
+        const newN = Number(value) || 0;
+        if(oldN>0 && newN>0 && newN!==oldN){
+          const f = newN/oldN;
+          ['rebar_kg','weight_kg','rebar_bot_kg','rebar_tie_kg'].forEach(k=>{
+            const cur = Number(row[k]);
+            if(row[k]!=null && row[k]!=='' && !isNaN(cur)) row[k] = sbR2(cur*f);
+          });
+        }
+      }
       if(SB_RECOMPUTE[sk]) SB_RECOMPUTE[sk](row);
       arr[idx] = row;
       return { ...prev, [sk]: arr };
