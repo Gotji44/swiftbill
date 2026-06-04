@@ -257,6 +257,32 @@ function ResultsScreen({ project, boqData, onConfirm }){
     setDirty(true);
   };
 
+  // แถวว่างใหม่สำหรับ sheet (เติมคีย์ตาม cols + recompute สูตร)
+  const sbBlankRow = (sk) => {
+    const row = {};
+    (SB_SHEET_COLS[sk]?.cols||[]).forEach(c=>{ row[c.k]=''; });
+    row.code=''; row.count=1;
+    if(SB_RECOMPUTE[sk]) SB_RECOMPUTE[sk](row);
+    return row;
+  };
+  // เพิ่มแถวว่างท้ายชีต
+  const addSheetRow = (sk) => {
+    setSheetState(prev=>{ const arr=(prev[sk]||[]).slice(); arr.push(sbBlankRow(sk)); return {...prev,[sk]:arr}; });
+    setDirty(true);
+  };
+  // แตกแถว = คัดลอกแถวนี้แทรกถัดลงไป (ใช้แยกคานหนึ่งรหัสเป็นหลายช่วง แล้วแก้ length/count แต่ละแถว)
+  const dupSheetRow = (sk, idx, e) => {
+    if(e) e.stopPropagation();
+    setSheetState(prev=>{ const arr=(prev[sk]||[]).slice(); const copy=JSON.parse(JSON.stringify(arr[idx]||{})); arr.splice(idx+1,0,copy); return {...prev,[sk]:arr}; });
+    setDirty(true);
+  };
+  // ลบแถว
+  const delSheetRow = (sk, idx, e) => {
+    if(e) e.stopPropagation();
+    setSheetState(prev=>{ const arr=(prev[sk]||[]).slice(); arr.splice(idx,1); return {...prev,[sk]:arr}; });
+    setDirty(true);
+  };
+
   // selection สำหรับโหมด sheet (อ้างด้วย code)
   const [selCode,setSelCode] = useState(null);
   const [selCat,setSelCat] = useState(null);
@@ -378,7 +404,7 @@ function ResultsScreen({ project, boqData, onConfirm }){
             {useSheets && (
               <div style={{padding:'8px 14px',fontSize:12,color:'var(--ink-3)',display:'flex',alignItems:'center',gap:8,flexWrap:'wrap',borderBottom:'1px solid var(--border)'}}>
                 <Icon name="info" size={13}/>
-                <span>คลิกที่ช่องเพื่อแก้ไขได้ · ช่องที่มี <b style={{color:'var(--primary)'}}>ƒ</b> คำนวณอัตโนมัติจากสูตร (คอนกรีต/ไม้แบบ/พื้นที่)</span>
+                <span>คลิกที่ช่องเพื่อแก้ไขได้ · ช่องที่มี <b style={{color:'var(--primary)'}}>ƒ</b> คำนวณอัตโนมัติจากสูตร (คอนกรีต/ไม้แบบ/พื้นที่) · ปุ่มท้ายแถว = แตกแถว/ลบ · ปุ่ม “เพิ่มแถว” ใต้ตาราง (เช่น แยกคานหนึ่งรหัสเป็นหลายช่วง)</span>
                 {dirty && <span className="badge b-orange" style={{fontSize:11}}>แก้ไขแล้ว — ค่าจะไหลไป Excel เมื่อยืนยัน</span>}
               </div>
             )}
@@ -399,7 +425,7 @@ function ResultsScreen({ project, boqData, onConfirm }){
                     {b.label && <div style={{padding:'8px 14px 2px',fontSize:12.5,fontWeight:600,color:'var(--ink-3)'}}>{b.label}</div>}
                     <div style={{overflowX:'auto'}}>
                       <table className="qtable">
-                        <thead><tr>{b.cols.map(c=><th key={c.k} style={{textAlign:c.num||c.int?'right':'left',whiteSpace:'nowrap'}}>{c.label}{c.derived?<span title="คำนวณอัตโนมัติ" style={{color:'var(--primary)',marginLeft:3}}>ƒ</span>:''}</th>)}</tr></thead>
+                        <thead><tr>{b.cols.map(c=><th key={c.k} style={{textAlign:c.num||c.int?'right':'left',whiteSpace:'nowrap'}}>{c.label}{c.derived?<span title="คำนวณอัตโนมัติ" style={{color:'var(--primary)',marginLeft:3}}>ƒ</span>:''}</th>)}{b.editable && <th style={{width:58}}></th>}</tr></thead>
                         <tbody>
                           {b.rows.map((r,ri)=>(
                             <tr key={r.code+'-'+ri} className={'qrow '+(selCode===r.code&&selCat===g.cat?'on':'')}
@@ -420,11 +446,24 @@ function ResultsScreen({ project, boqData, onConfirm }){
                                   </td>
                                 );
                               })}
+                              {b.editable && (
+                                <td className="row-act" onClick={e=>e.stopPropagation()}>
+                                  <button className="ra-btn" title="แตกแถว (คัดลอกแถวนี้ — ใช้แยกคานเป็นหลายช่วง)" onClick={e=>dupSheetRow(r._sk,r._idx,e)}><Icon name="layers" size={14}/></button>
+                                  <button className="ra-btn del" title="ลบแถวนี้" onClick={e=>delSheetRow(r._sk,r._idx,e)}><Icon name="trash" size={14}/></button>
+                                </td>
+                              )}
                             </tr>
                           ))}
                         </tbody>
                       </table>
                     </div>
+                    {b.editable && (
+                      <div style={{padding:'4px 14px 12px'}}>
+                        <button className="add-row-btn" onClick={()=>addSheetRow(b.key)}>
+                          <Icon name="plus" size={13}/> เพิ่มแถว{b.label?' ('+b.label+')':''}
+                        </button>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
