@@ -160,10 +160,10 @@ function generateBOQExcel(project, boqData) {
 
   // ── Sheet 05: ฐานราก ─────────────────────────────────────────
   const footingRows = sh.footings || itemsToSheetRows(items, 'ฐานราก');
-  const f_header1 = ['รหัส','ประเภท','B (m)','L (m)','T (m)','จำนวน','ลึกขุด (m)','หนา Lean','หนา ทราย','fc\'','เหล็กล่าง X','เหล็กล่าง Y','ปลอก/รัด','เสาเข็ม/ฐาน','หมายเหตุ'];
+  const f_header1 = ['รหัส','ประเภท','รูปทรง','B (m)','L (m)','T (m)','จำนวน','ลึกขุด (m)','หนา Lean','หนา ทราย','fc\'','เหล็กล่าง X','เหล็กล่าง Y','ปลอก/รัด','เสาเข็ม/ฐาน','หมายเหตุ'];
   const f_header2 = ['รหัส','พื้นที่ฐาน (ม²)','คสล./ฐาน (ม³)','คสล.รวม (ม³)','Lean (ม³)','ขุดดิน (ม³)','ทรายอัดแน่น (ม³)','ไม้แบบ (ม²)','เหล็กล่าง (kg)','เหล็กรัด (kg)','เหล็กรวม (kg)'];
   const f_data1 = footingRows.map(r => [
-    r.code||'-', r.type||'เดี่ยว', r.B||'-', r.L||'-', r.T||'-',
+    r.code||'-', r.type||'เดี่ยว', r.shape||'สี่เหลี่ยม', r.B||'-', r.L||'-', r.T||'-',
     r.count||r.qty||0, r.depth||'-', r.lean_t||0.05, r.sand_t||0.05, r.fc||240,
     addSteelType(r.rebar_x||r.rebar||'-'), addSteelType(r.rebar_y||'-'), addSteelType(r.ties||'-'), r.piles||1, r.notes||''
   ]);
@@ -181,7 +181,7 @@ function generateBOQExcel(project, boqData) {
     SB('สรุปปริมาณ (Summary)'),
     H(f_header2), ...f_data2.map(D),
     TT(['รวม','','',...f_total.slice(2)]),
-  ], [8,10,6,6,6,7,8,8,8,7,14,14,12,10,20]);
+  ], [8,10,15,6,6,6,7,8,8,8,7,14,14,12,10,20]);
 
   // ── Sheet 03: เสา ────────────────────────────────────────────
   const colRows = sh.columns || itemsToSheetRows(items, 'เสา');
@@ -413,6 +413,17 @@ function itemsToSheetRows(items, cat, subFilter) {
 }
 
 // ── Utility: คำนวณ summary ของ footing rows ─────────────────────
+// พื้นที่ฐานราก (ตร.ม.) ตามรูปทรง: สี่เหลี่ยม=B×L · สามเหลี่ยม=½BL · สามเหลี่ยมตัดมุม(คางหมู)=½(B+B2)L · วงกลม=πr²
+// area_m2 (ถ้าระบุ) override ทุกสูตร
+function footArea(r){
+  const B = Number(r.B)||0, L = Number(r.L)||0, B2 = Number(r.B2)||0;
+  if (Number(r.area_m2) > 0) return Number(r.area_m2);
+  const s = String(r.shape||'').replace(/\s/g,'');
+  if (s.includes('สามเหลี่ยมตัดมุม') || s.includes('คางหมู')) return 0.5*(B + (B2||B*0.5))*L;
+  if (s.includes('สามเหลี่ยม')) return 0.5*B*L;
+  if (s.includes('วงกลม') || s.includes('กลม')) return Math.PI*(B/2)*(L/2);
+  return B*L; // สี่เหลี่ยม (ค่าเริ่มต้น)
+}
 function calcFootingSummary(rows) {
   return rows.map(r => {
     const B = Number(r.B)||1, L = Number(r.L)||1, T = Number(r.T)||0.5;
@@ -420,8 +431,9 @@ function calcFootingSummary(rows) {
     const lean_t = Number(r.lean_t)||0.05;
     const sand_t = Number(r.sand_t)||0.05;
     const depth  = Number(r.depth)||1.2;
-    const area   = n2(B*L);
-    const cpf    = n2(B*L*T);
+    const fa     = footArea(r);
+    const area   = n2(fa);
+    const cpf    = n2(fa*T);
     const c_m3   = r.concrete_m3 ? n2(r.concrete_m3) : n2(cpf*n);
     const lean   = r.lean_m3    ? n2(r.lean_m3)    : n2((B+0.1)*(L+0.1)*lean_t*n);
     const sand   = r.sand_m3    ? n2(r.sand_m3)    : n2((B+0.1)*(L+0.1)*sand_t*n);

@@ -5,8 +5,8 @@
 // derived = ช่องที่คำนวณอัตโนมัติจากสูตร (แก้มือไม่ได้) ส่วนช่องอื่นแก้ได้
 const SB_SHEET_COLS = {
   footings: { label:'ฐานราก', cols:[
-    {k:'code',label:'รหัส'}, {k:'type',label:'ประเภท'},
-    {k:'B',label:'B (m)',num:1}, {k:'L',label:'L (m)',num:1}, {k:'T',label:'T (m)',num:1},
+    {k:'code',label:'รหัส'}, {k:'type',label:'ประเภท'}, {k:'shape',label:'รูปทรง'},
+    {k:'B',label:'B (m)',num:1}, {k:'L',label:'L (m)',num:1}, {k:'B2',label:'B2 บน (m)',num:1}, {k:'T',label:'T (m)',num:1},
     {k:'count',label:'จำนวน',int:1,alt:'qty'}, {k:'depth',label:'ลึกขุด (m)',num:1},
     {k:'lean_t',label:'หนา Lean (m)',num:1}, {k:'sand_t',label:'หนา ทราย (m)',num:1},
     {k:'fc',label:"fc'",int:1},
@@ -72,9 +72,20 @@ const SB_GENERIC_COLS = [
 // ── สูตรเรขาคณิตอัตโนมัติ (mirror excel-export.jsx) — เหล็ก (rebar_kg/weight_kg) แก้มือ ──
 const sbR2 = (n) => Math.round((Number(n)||0)*100)/100;
 const sbSection = (s) => { const p=String(s||'0.3×0.4').split(/[×x]/); return [Number(p[0])||0, Number(p[1])||0]; };
+// พื้นที่ฐานรากตามรูปทรง (ต้องตรงกับ footArea ใน excel-export.jsx)
+const sbFootArea = (r) => {
+  const B=+r.B||0, L=+r.L||0, B2=+r.B2||0;
+  if(+r.area_m2 > 0) return +r.area_m2;
+  const s = String(r.shape||'').replace(/\s/g,'');
+  if(s.includes('สามเหลี่ยมตัดมุม')||s.includes('คางหมู')) return 0.5*(B+(B2||B*0.5))*L;
+  if(s.includes('สามเหลี่ยม')) return 0.5*B*L;
+  if(s.includes('วงกลม')||s.includes('กลม')) return Math.PI*(B/2)*(L/2);
+  return B*L;
+};
 const SB_RECOMPUTE = {
   footings:(r)=>{ const B=+r.B||0,L=+r.L||0,T=+r.T||0,n=+(r.count??r.qty)||0,d=+r.depth||0,lt=+r.lean_t||0.05,st=+r.sand_t||0.05;
-    r.concrete_m3=sbR2(B*L*T*n); r.formwork_m2=sbR2(2*(B+L)*T*n);
+    const A=sbFootArea(r);
+    r.concrete_m3=sbR2(A*T*n); r.formwork_m2=sbR2(2*(B+L)*T*n);
     r.excavation_m3=sbR2((B+1)*(L+1)*d*n); r.lean_m3=sbR2((B+0.1)*(L+0.1)*lt*n); r.sand_m3=sbR2((B+0.1)*(L+0.1)*st*n); },
   columns:(r)=>{ const [B,D]=sbSection(r.section); const h=+r.height||0,n=+(r.count??r.qty)||0;
     r.concrete_per=sbR2(B*D*h); r.concrete_m3=sbR2(B*D*h*n); r.formwork_m2=sbR2(2*(B+D)*h*n); },
