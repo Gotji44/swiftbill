@@ -93,7 +93,9 @@ function UploadScreen({ project, onComplete, onUploadingChange }){
       const buf = await pdfFile.raw.arrayBuffer();
       pdfBufRef.current = buf;
 
-      const pdf = await pdfjsLib.getDocument({data: buf}).promise;
+      // ‼️ pdf.js "ยึด" (detach) ArrayBuffer ที่ส่งเข้าไป → buf กลายเป็น byteLength=0
+      //    ต้องส่งสำเนา (slice) ให้ pdf.js เพื่อให้ pdfBufRef.current ยังใช้ตัดหน้าด้วย pdf-lib ได้
+      const pdf = await pdfjsLib.getDocument({data: buf.slice(0)}).promise;
       const count = pdf.numPages;
       setTotalPageCount(count);
 
@@ -225,7 +227,7 @@ function UploadScreen({ project, onComplete, onUploadingChange }){
       const originalPdf  = await PDFDocument.load(pdfBufRef.current);
       const newPdf       = await PDFDocument.create();
       const indices      = selected.map(p=>p.idx);
-      const copiedPages  = await newPdf.copyPagesFrom(originalPdf, indices);
+      const copiedPages  = await newPdf.copyPages(originalPdf, indices);
       copiedPages.forEach(p=>newPdf.addPage(p));
       const bytes = await newPdf.save();
       const blob  = new Blob([bytes],{type:'application/pdf'});
@@ -361,7 +363,7 @@ function UploadScreen({ project, onComplete, onUploadingChange }){
 
         <div style={{background:'var(--primary-soft)',padding:'10px 14px',borderRadius:8,
           fontSize:13,color:'var(--primary)',marginBottom:16,lineHeight:1.6}}>
-          💡 <b>ติ๊กเฉพาะหน้าแบบโครงสร้าง</b> (ฐานราก · เสา · คาน · พื้น · หลังคา) แล้วกด "อัปโหลดหน้าที่เลือก"<br/>
+          💡 <b>ติ๊กเฉพาะหน้าแบบที่ตรงกับงาน</b> — โครงสร้าง (ฐานราก · เสา · คาน · พื้น · หลังคา) หรือ สถาปัตย์ (ผัง · รูปด้าน · ตารางประตูหน้าต่าง · Finish) แล้วกด "อัปโหลดหน้าที่เลือก"<br/>
           ตัดหน้าที่ไม่เกี่ยว AI ใช้เวลาน้อยลงและประหยัด credit<br/>
           ⏱️ <b>แบบที่สมาชิกเยอะ:</b> เลือกหน้าน้อยลง หรือแยกเลือกหมวดทีละ 2–3 หมวดต่อรอบ เพื่อให้แต่ละรอบเสร็จใน ~2 นาที (ระบบจำกัดเวลาประมวลผล ~150 วิ./รอบ)
         </div>
