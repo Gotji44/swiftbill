@@ -44,19 +44,25 @@ const PROJECTS = [
 ];
 
 // ---- Scope work items (Step 5 section A) ----
+// disc: สายงาน — 'str' โครงสร้าง / 'arch' สถาปัตย์ (หน้า scope กรองตามโหมดที่ผู้ใช้เลือก)
 const SCOPE_ITEMS = [
-  { id:'footing', th:'ฐานราก', icon:'▢', cat:'ฐานราก', base:2200, color:'--indigo' },
-  { id:'column',  th:'เสา',    icon:'▮', cat:'เสา',    base:2600, color:'--cyan' },
-  { id:'beam',    th:'คาน',    icon:'▬', cat:'คาน',    base:3100, color:'--amber' },
-  { id:'slab',    th:'พื้น',   icon:'▤', cat:'พื้น',   base:2400, color:'--purple' },
-  { id:'stair',   th:'บันได',  icon:'◿', cat:'บันได',  base:1500, color:'--orange' },
-  { id:'roof',    th:'หลังคา', icon:'◹', cat:'หลังคา', base:2800, color:'--green' },
+  { id:'footing', th:'ฐานราก', icon:'▢', cat:'ฐานราก', base:2200, color:'--indigo', disc:'str' },
+  { id:'column',  th:'เสา',    icon:'▮', cat:'เสา',    base:2600, color:'--cyan',   disc:'str' },
+  { id:'beam',    th:'คาน',    icon:'▬', cat:'คาน',    base:3100, color:'--amber',  disc:'str' },
+  { id:'slab',    th:'พื้น',   icon:'▤', cat:'พื้น',   base:2400, color:'--purple', disc:'str' },
+  { id:'stair',   th:'บันได',  icon:'◿', cat:'บันได',  base:1500, color:'--orange', disc:'str' },
+  { id:'roof',    th:'หลังคา', icon:'◹', cat:'หลังคา', base:2800, color:'--green',  disc:'str' },
+  { id:'wall',         th:'ผนัง',           icon:'▦', cat:'ผนัง',           base:2400, color:'--indigo', disc:'arch' },
+  { id:'door_window',  th:'ประตู-หน้าต่าง', icon:'◫', cat:'ประตู-หน้าต่าง', base:1800, color:'--cyan',   disc:'arch' },
+  { id:'floor_finish', th:'พื้นผิว',        icon:'▨', cat:'พื้นผิว',        base:2000, color:'--amber',  disc:'arch' },
+  { id:'ceiling',      th:'ฝ้าเพดาน',       icon:'▭', cat:'ฝ้าเพดาน',       base:1600, color:'--purple', disc:'arch' },
 ];
 
 // ---- Category color map (results accordion / bboxes) ----
 const CAT_COLOR = {
   'ฐานราก':'#6366f1', 'เสา':'#0891b2', 'คาน':'#b45309',
   'พื้น':'#9333ea', 'บันได':'#ea580c', 'หลังคา':'#15803d',
+  'ผนัง':'#0d9488', 'ประตู-หน้าต่าง':'#db2777', 'พื้นผิว':'#7c3aed', 'ฝ้าเพดาน':'#0369a1',
 };
 
 // ---- Pre-extracted quantities (Step 11) ----

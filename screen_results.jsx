@@ -57,11 +57,41 @@ const SB_SHEET_COLS = {
     {k:'load_kg_m2',label:'น้ำหนักบรรทุก (กก./ม²)',int:1}, {k:'area_m2',label:'พื้นที่รวม (ม²)',num:1,derived:1,alt:'volume'},
     {k:'notes',label:'หมายเหตุ'},
   ]},
+  // ── งานสถาปัตย์ ──────────────────────────────────────────────
+  walls: { label:'ผนัง', cols:[
+    {k:'code',label:'รหัส'}, {k:'material',label:'วัสดุ'}, {k:'location',label:'ตำแหน่ง',alt:'name'},
+    {k:'length',label:'ยาว (m)',num:1}, {k:'height',label:'สูง (m)',num:1}, {k:'count',label:'จำนวนแนว',int:1,alt:'qty'},
+    {k:'gross_m2',label:'พื้นที่รวม (ม²)',num:1}, {k:'openings_m2',label:'หักช่องเปิด (ม²)',num:1},
+    {k:'net_m2',label:'สุทธิ (ม²)',num:1}, {k:'plaster_sides',label:'ฉาบ (หน้า)',int:1},
+    {k:'plaster_m2',label:'ฉาบปูน (ม²)',num:1}, {k:'notes',label:'หมายเหตุ'},
+  ]},
+  doors: { label:'ประตู', cols:[
+    {k:'code',label:'รหัส'}, {k:'type',label:'ชนิด'}, {k:'material',label:'วัสดุ'},
+    {k:'W',label:'กว้าง (m)',num:1}, {k:'H',label:'สูง (m)',num:1}, {k:'frame',label:'วงกบ'},
+    {k:'count',label:'จำนวน (ชุด)',int:1,alt:'qty'}, {k:'location',label:'ตำแหน่ง'}, {k:'notes',label:'หมายเหตุ'},
+  ]},
+  windows: { label:'หน้าต่าง', cols:[
+    {k:'code',label:'รหัส'}, {k:'type',label:'ชนิด'}, {k:'material',label:'วัสดุ'},
+    {k:'W',label:'กว้าง (m)',num:1}, {k:'H',label:'สูง (m)',num:1}, {k:'frame',label:'วงกบ'},
+    {k:'count',label:'จำนวน (ชุด)',int:1,alt:'qty'}, {k:'location',label:'ตำแหน่ง'}, {k:'notes',label:'หมายเหตุ'},
+  ]},
+  floor_finishes: { label:'พื้นผิว (วัสดุปูพื้น)', cols:[
+    {k:'room',label:'ห้อง',alt:'name'}, {k:'material',label:'วัสดุ'},
+    {k:'B',label:'B (m)',num:1}, {k:'L',label:'L (m)',num:1}, {k:'area_m2',label:'พื้นที่ (ม²)',num:1,alt:'volume'},
+    {k:'skirting_m',label:'บัวเชิงผนัง (m)',num:1}, {k:'skirting_material',label:'วัสดุบัว'}, {k:'notes',label:'หมายเหตุ'},
+  ]},
+  ceilings: { label:'ฝ้าเพดาน', cols:[
+    {k:'room',label:'ห้อง',alt:'name'}, {k:'material',label:'วัสดุ'},
+    {k:'level',label:'ระดับฝ้า (m)',num:1}, {k:'area_m2',label:'พื้นที่ (ม²)',num:1,alt:'volume'},
+    {k:'cornice_m',label:'บัวฝ้า (m)',num:1}, {k:'notes',label:'หมายเหตุ'},
+  ]},
 };
 // หมวด (CAT_COLOR) → sheet ที่เกี่ยวข้อง
 const SB_CAT_SHEETS = {
   'ฐานราก': ['footings'], 'เสา': ['columns'], 'คาน': ['beams'],
   'พื้น': ['slabs_cip','slabs_precast'], 'หลังคา': ['roof'],
+  'ผนัง': ['walls'], 'ประตู-หน้าต่าง': ['doors','windows'],
+  'พื้นผิว': ['floor_finishes'], 'ฝ้าเพดาน': ['ceilings'],
 };
 // คอลัมน์ทั่วไป (สำหรับหมวดที่ไม่มี sheet เฉพาะ เช่น บันได)
 const SB_GENERIC_COLS = [

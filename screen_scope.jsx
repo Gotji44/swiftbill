@@ -3,7 +3,18 @@
 // Map scope id → ชื่อหมวดภาษาไทย (ตรงกับ category ที่ Edge Function ต้องการ)
 const SCOPE_CAT = {
   footing:'ฐานราก', column:'เสา', beam:'คาน',
-  slab:'พื้น', stair:'บันได', roof:'หลังคา'
+  slab:'พื้น', stair:'บันได', roof:'หลังคา',
+  wall:'ผนัง', door_window:'ประตู-หน้าต่าง', floor_finish:'พื้นผิว', ceiling:'ฝ้าเพดาน',
+};
+
+// ---- สายงาน (discipline) — เลือกได้ทีละโหมด เพราะ Edge Function ใช้ prompt คนละก้อน ----
+const DISC_OPTS = [
+  { id:'str',  th:'งานโครงสร้าง', d:'ฐานราก เสา คาน พื้น บันได หลังคา' },
+  { id:'arch', th:'งานสถาปัตย์',  d:'ผนัง ประตู-หน้าต่าง พื้นผิว ฝ้า' },
+];
+const DISC_DEFAULT_SCOPE = {
+  str:  ['footing','column','beam','slab','stair'],
+  arch: ['wall','door_window','floor_finish','ceiling'],
 };
 
 const ANALYZE_STEPS = [
@@ -23,8 +34,12 @@ const SCOPE_STAGE_MSGS = {
   slab:    ['กำลังวิเคราะห์พื้น (หล่อในที่ / สำเร็จรูป)', 'ถอดปริมาณพื้นและท้องพื้น'],
   stair:   ['กำลังถอดปริมาณบันได'],
   roof:    ['กำลังวิเคราะห์โครงหลังคา', 'ถอดปริมาณงานหลังคาและวัสดุมุง'],
+  wall:         ['กำลังไล่วัดผนังทีละแนวจากผังพื้น', 'หักช่องเปิดประตู-หน้าต่างออกจากผนัง', 'คำนวณพื้นที่ก่อและฉาบปูน'],
+  door_window:  ['กำลังอ่านตารางประตู-หน้าต่าง (D1, W1…)', 'นับจำนวนบานจากผังทุกชั้น', 'กระทบยอดจำนวนบานกับตาราง'],
+  floor_finish: ['กำลังอ่าน Room Finish Schedule', 'ถอดพื้นที่วัสดุปูพื้นรายห้อง', 'คำนวณบัวเชิงผนัง'],
+  ceiling:      ['กำลังอ่านผังฝ้าเพดานและระดับฝ้า', 'ถอดพื้นที่ฝ้ารายห้อง'],
 };
-const SCOPE_STAGE_ORDER = ['footing','column','beam','slab','stair','roof'];
+const SCOPE_STAGE_ORDER = ['footing','column','beam','slab','stair','roof','wall','door_window','floor_finish','ceiling'];
 const STAGE_SECS = 7;   // เปลี่ยนข้อความทุก ~7 วิ
 
 // สร้างลำดับข้อความตามหมวดที่เลือก (เรียงตามลำดับการถอดแบบจริง)
@@ -67,7 +82,10 @@ function classifyAnalyzeError(err, elapsed){
 
 function ScopeScreen({ project, uploadData, onConfirm, onAnalyzingChange }){
   const toast = useToast();
-  const [scope,setScope] = useState(['footing','column','beam','slab','stair']);
+  const [disc,setDisc] = useState('str');   // สายงาน: str โครงสร้าง / arch สถาปัตย์
+  const [scope,setScope] = useState(DISC_DEFAULT_SCOPE.str);
+  // สลับสายงาน → รีเซ็ต scope เป็นค่าเริ่มต้นของสายนั้น (หมวดสองสายผสมกันไม่ได้ — prompt คนละก้อน)
+  const switchDisc = (id)=>{ if(id!==disc){ setDisc(id); setScope(DISC_DEFAULT_SCOPE[id]); } };
   const [tier,setTier] = useState('engineer');
   const [pricing,setPricing] = useState('qty_only'); // ค่าเริ่มต้น: ถอดปริมาณอย่างเดียว (ยังไม่จับคู่ราคา)
   const [showQuote,setShowQuote] = useState(false);
@@ -182,6 +200,7 @@ function ScopeScreen({ project, uploadData, onConfirm, onAnalyzingChange }){
             fileName:      uploadData.fileName,
             projectName:   project.name,
             selectedScope,
+            discipline:    disc === 'arch' ? 'arch' : 'structural',
           })
         });
       } finally {
@@ -447,8 +466,24 @@ function ScopeScreen({ project, uploadData, onConfirm, onAnalyzingChange }){
             <div className="sec-title">เลือกขอบเขตงาน</div>
             <div className="sec-req">เลือกอย่างน้อย 1 รายการ · เลือกแล้ว {scope.length}</div>
           </div>
+          {/* สายงาน: โครงสร้าง / สถาปัตย์ — สลับแล้วรายการหมวดด้านล่างเปลี่ยนตาม */}
+          <div style={{display:'flex',gap:10,marginBottom:14}}>
+            {DISC_OPTS.map(o=>{
+              const on = disc===o.id;
+              return (
+                <button key={o.id} onClick={()=>switchDisc(o.id)}
+                  style={{flex:1,textAlign:'left',cursor:'pointer',padding:'10px 14px',borderRadius:10,
+                    border:'1.5px solid '+(on?'var(--primary)':'var(--border)'),
+                    background:on?'var(--primary-soft)':'var(--surface)',
+                    color:on?'var(--primary)':'var(--ink-3)'}}>
+                  <div style={{fontSize:14,fontWeight:700}}>{o.th}</div>
+                  <div style={{fontSize:11.5,marginTop:2,opacity:.85}}>{o.d}</div>
+                </button>
+              );
+            })}
+          </div>
           <div className="opt-grid cols3">
-            {SCOPE_ITEMS.map(it=>{
+            {SCOPE_ITEMS.filter(it=>(it.disc||'str')===disc).map(it=>{
               const on = scope.includes(it.id);
               return (
                 <div key={it.id} className={'opt '+(on?'sel':'')} onClick={()=>toggleScope(it.id)}>

@@ -312,10 +312,105 @@ function generateBOQExcel(project, boqData) {
     TT(['รวม','','','','','','','','',n2(sc_total),'']),
   ], [8,18,12,6,6,6,7,16,16,12,18]);
 
-  // ── Sheet 11: สรุปรวม ─────────────────────────────────────────
+  // ══════════ งานสถาปัตย์ (Sheet 20-24) ══════════════════════════
+  // ── Sheet 20: ผนัง ───────────────────────────────────────────
+  const wallRows = sh.walls || itemsToSheetRows(items, 'ผนัง');
+  const w_header = ['รหัส','วัสดุ','ตำแหน่ง','ยาว (m)','สูง (m)','จำนวนแนว','พื้นที่รวม (ม²)','หักช่องเปิด (ม²)','สุทธิ (ม²)','ฉาบ (หน้า)','ฉาบปูน (ม²)','หมายเหตุ'];
+  const w_data = wallRows.map(r => [
+    r.code||'-', r.material||'-', r.location||r.name||'-',
+    n2(r.length||0), n2(r.height||0), r.count||r.qty||1,
+    n2(r.gross_m2||0), n2(r.openings_m2||0), n2(r.net_m2||r.volume||0),
+    r.plaster_sides||2, n2(r.plaster_m2||0), r.notes||''
+  ]);
+  const w_total = sumRow(w_data, [6,7,8,10]);
+  if (wallRows.length) buildAndStyle(wb, '20_ผนัง', [
+    T('Sheet 20 — ผนัง (ก่อ + ฉาบ)'),
+    BL(),
+    H(w_header), ...w_data.map(D),
+    TT(['รวม','','','','','',w_total[6],w_total[7],w_total[8],'',w_total[10],'']),
+  ], [10,20,20,7,7,8,11,12,10,8,11,20]);
+
+  // ── Sheet 21: ประตู-หน้าต่าง ─────────────────────────────────
+  const doorRows = sh.doors || [];
+  const winRows  = sh.windows || [];
+  const dw_header = ['รหัส','ชนิด','วัสดุ','กว้าง (m)','สูง (m)','วงกบ','จำนวน (ชุด)','ตำแหน่ง','หมายเหตุ'];
+  const dwRow = (r) => [
+    r.code||'-', r.type||'-', r.material||'-',
+    n2(r.W||0), n2(r.H||0), r.frame||'-',
+    r.count||r.qty||0, r.location||'-', r.notes||''
+  ];
+  const d_data = doorRows.map(dwRow);
+  const wn_data = winRows.map(dwRow);
+  if (doorRows.length || winRows.length) buildAndStyle(wb, '21_ประตูหน้าต่าง', [
+    T('Sheet 21 — ประตูและหน้าต่าง'),
+    BL(),
+    SB('ประตู'),
+    H(dw_header), ...d_data.map(D),
+    TT(['รวมประตู','','','','','',sumRow(d_data,[6])[6]||0,'','']),
+    BL(),
+    SB('หน้าต่าง'),
+    H(dw_header), ...wn_data.map(D),
+    TT(['รวมหน้าต่าง','','','','','',sumRow(wn_data,[6])[6]||0,'','']),
+  ], [8,16,20,8,8,14,10,20,20]);
+
+  // ── Sheet 22: พื้นผิว (วัสดุปูพื้น) ──────────────────────────
+  const ffRows = sh.floor_finishes || itemsToSheetRows(items, 'พื้นผิว');
+  const ff_header = ['ห้อง','วัสดุ','B (m)','L (m)','พื้นที่ (ม²)','บัวเชิงผนัง (m)','วัสดุบัว','หมายเหตุ'];
+  const ff_data = ffRows.map(r => [
+    r.room||r.code||r.name||'-', r.material||'-',
+    n2(r.B||0), n2(r.L||0), n2(r.area_m2||r.volume||0),
+    n2(r.skirting_m||0), r.skirting_material||'-', r.notes||''
+  ]);
+  const ff_total = sumRow(ff_data, [4,5]);
+  if (ffRows.length) buildAndStyle(wb, '22_พื้นผิว', [
+    T('Sheet 22 — พื้นผิว (วัสดุปูพื้น + บัวเชิงผนัง)'),
+    BL(),
+    H(ff_header), ...ff_data.map(D),
+    TT(['รวม','','','',ff_total[4],ff_total[5],'','']),
+  ], [16,24,7,7,10,12,16,20]);
+
+  // ── Sheet 23: ฝ้าเพดาน ───────────────────────────────────────
+  const clRows = sh.ceilings || itemsToSheetRows(items, 'ฝ้าเพดาน');
+  const cl_header = ['ห้อง','วัสดุ','ระดับฝ้า (m)','พื้นที่ (ม²)','บัวฝ้า (m)','หมายเหตุ'];
+  const cl_data = clRows.map(r => [
+    r.room||r.code||r.name||'-', r.material||'-',
+    n2(r.level||0), n2(r.area_m2||r.volume||0), n2(r.cornice_m||0), r.notes||''
+  ]);
+  const cl_total = sumRow(cl_data, [3,4]);
+  if (clRows.length) buildAndStyle(wb, '23_ฝ้าเพดาน', [
+    T('Sheet 23 — ฝ้าเพดาน'),
+    BL(),
+    H(cl_header), ...cl_data.map(D),
+    TT(['รวม','','',cl_total[3],cl_total[4],'']),
+  ], [16,28,10,10,10,20]);
+
+  // ── Sheet 24: สรุปงานสถาปัตย์ ────────────────────────────────
+  const hasArch = wallRows.length || doorRows.length || winRows.length || ffRows.length || clRows.length;
+  if (hasArch) buildAndStyle(wb, '24_สรุปสถาปัตย์', [
+    T('Sheet 24 — สรุปรวมงานสถาปัตย์'),
+    BL(),
+    H(['หมวด','รายการ','ปริมาณ','หน่วย','หมายเหตุ']),
+    D(['1. ผนัง','พื้นที่ก่อสุทธิ (หักช่องเปิดแล้ว)', n2(w_total[8]||0),'ม²','']),
+    D(['','ฉาบปูน',                                    n2(w_total[10]||0),'ม²','']),
+    D(['2. ประตู-หน้าต่าง','ประตูรวม',                sumRow(d_data,[6])[6]||0,'ชุด','']),
+    D(['','หน้าต่างรวม',                               sumRow(wn_data,[6])[6]||0,'ชุด','']),
+    D(['3. พื้นผิว','วัสดุปูพื้นรวม',                 n2(ff_total[4]||0),'ม²','']),
+    D(['','บัวเชิงผนังรวม',                            n2(ff_total[5]||0),'เมตร','']),
+    D(['4. ฝ้าเพดาน','พื้นที่ฝ้ารวม',                n2(cl_total[3]||0),'ม²','']),
+    D(['','บัวฝ้ารวม',                                 n2(cl_total[4]||0),'เมตร','']),
+    BL(),
+    SB('หมายเหตุ'),
+    NOTE('1. ปริมาณนี้ยังไม่คำนวณราคา และหักช่องเปิดตามจริงทุกช่อง (ยังไม่รวม Wastage)'),
+    NOTE('2. แนะนำ Wastage: กระเบื้อง +10%, อิฐ/ปูนก่อ-ฉาบ +5%, ฝ้า +5%'),
+    NOTE(`3. ถอดโดย Claude AI จากแบบ "${project.name}" — ${today}`),
+  ], [18,30,12,8,24]);
+
+  // ── Sheet 11: สรุปรวม (งานโครงสร้าง — ข้ามเมื่อไม่มีข้อมูลโครงสร้าง) ──
+  const hasStructural = footingRows.length || colRows.length || beamRows.length
+    || roofRows.length || precastRows.length || cipRows.length;
   const totals = calcTotals(footingRows, colRows, beamRows, roofRows, precastRows, cipRows, items);
   const s_header = ['หมวด','รายการ','ปริมาณ','หน่วย','หมายเหตุ'];
-  buildAndStyle(wb, '11_สรุปรวม', [
+  if (hasStructural) buildAndStyle(wb, '11_สรุปรวม', [
     T('Sheet 11 — สรุปรวมปริมาณงาน'),
     BL(),
     H(s_header),
@@ -352,10 +447,10 @@ function generateBOQExcel(project, boqData) {
     NOTE(`4. ถอดโดย Claude AI จากแบบ "${project.name}" — ${today}`),
   ], [16,28,12,8,24]);
 
-  // ── Sheet 13: สรุปวัสดุ (รวม Wastage) ────────────────────────
+  // ── Sheet 13: สรุปวัสดุ (รวม Wastage) — เฉพาะงานโครงสร้าง ────
   const mat_header = ['ลำดับ','รายการวัสดุ','ปริมาณ (สุทธิ)','หน่วย','Wastage','ปริมาณสั่งซื้อ','หมายเหตุ'];
   const wasted = (v, pct) => n2(v*(1+pct/100));
-  buildAndStyle(wb, '13_สรุปวัสดุ', [
+  if (hasStructural) buildAndStyle(wb, '13_สรุปวัสดุ', [
     T('Sheet 13 — สรุปวัสดุสำหรับสั่งซื้อ (รวม Wastage)'),
     BL(),
     H(mat_header),
