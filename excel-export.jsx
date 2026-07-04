@@ -133,7 +133,7 @@ function generateBOQExcel(project, boqData) {
   // ── Sheet 01: ข้อมูลโครงการ ───────────────────────────────────
   buildAndStyle(wb, '01_ข้อมูลโครงการ', [
     T('ใบถอดปริมาณงานก่อสร้าง (BOQ)'),
-    SB('สร้างโดย SwiftBill + Claude AI'),
+    SB('สร้างโดย SwiftBill'),
     BL(),
     SB('ข้อมูลทั่วไป'),
     KV('ชื่อโครงการ',      project.name || '-'),
@@ -402,7 +402,7 @@ function generateBOQExcel(project, boqData) {
     SB('หมายเหตุ'),
     NOTE('1. ปริมาณนี้ยังไม่คำนวณราคา และหักช่องเปิดตามจริงทุกช่อง (ยังไม่รวม Wastage)'),
     NOTE('2. แนะนำ Wastage: กระเบื้อง +10%, อิฐ/ปูนก่อ-ฉาบ +5%, ฝ้า +5%'),
-    NOTE(`3. ถอดโดย Claude AI จากแบบ "${project.name}" — ${today}`),
+    NOTE(`3. ถอดโดย SwiftBill จากแบบ "${project.name}" — ${today}`),
   ], [18,30,12,8,24]);
 
   // ── Sheet 11: สรุปรวม (งานโครงสร้าง — ข้ามเมื่อไม่มีข้อมูลโครงสร้าง) ──
@@ -444,7 +444,7 @@ function generateBOQExcel(project, boqData) {
     NOTE('1. ปริมาณนี้ยังไม่คำนวณราคา'),
     NOTE('2. น้ำหนักเหล็กรวมระยะดัดงอ + ระยะทาบแล้ว (lap=40D, hook=12D)'),
     NOTE('3. แนะนำ Wastage: เหล็ก +7%, คอนกรีต +5%, ไม้แบบ +10%'),
-    NOTE(`4. ถอดโดย Claude AI จากแบบ "${project.name}" — ${today}`),
+    NOTE(`4. ถอดโดย SwiftBill จากแบบ "${project.name}" — ${today}`),
   ], [16,28,12,8,24]);
 
   // ── Sheet 13: สรุปวัสดุ (รวม Wastage) — เฉพาะงานโครงสร้าง ────

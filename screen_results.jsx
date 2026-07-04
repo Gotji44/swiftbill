@@ -592,6 +592,11 @@ function ResultsScreen({ project, boqData, onConfirm }){
             )}
           </div>
 
+          {/* cost breakdown drawer — ค่าใช้จ่าย AI ต่อการถอด 1 ครั้ง */}
+          {isReal && boqData?.summary?._cost && (
+            <CostDrawer cost={boqData.summary._cost} />
+          )}
+
           {/* sticky confirm bar */}
           <div className="confirm-bar">
             <div className="info"><b>{useSheets ? sheetTotalCount : rows.length}</b> รายการ · จากแบบ <b>{project.drawings}</b> ฉบับ · รวม {useSheets ? sheetTotalUnits : totalRows} หน่วย</div>
@@ -624,6 +629,44 @@ function ResultsScreen({ project, boqData, onConfirm }){
               : <div style={{marginTop:12}} className="badge b-green"><Icon name="excel" size={13}/> ขั้นต่อไป: ส่งออกไฟล์</div>}
           </div>
         </Modal>
+      )}
+    </div>
+  );
+}
+
+// ── ค่าใช้จ่าย AI ต่อการถอด 1 ครั้ง (จาก summary._cost ที่ Edge Function คำนวณจาก token จริง) ──
+function CostDrawer({ cost }){
+  const [open,setOpen] = useState(false);
+  const baht = (n)=> '฿'+(Number(n)||0).toLocaleString('th-TH',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const perCat = Array.isArray(cost.per_category) ? cost.per_category : [];
+  return (
+    <div className="drawer">
+      <div className={'drawer-head '+(open?'open':'')} onClick={()=>setOpen(o=>!o)}>
+        <Icon name="money" size={15}/>
+        <span>ค่าใช้จ่าย AI ครั้งนี้ — {baht(cost.total_thb)} <small style={{color:'var(--ink-4)'}}>(~${(Number(cost.total_usd)||0).toFixed(3)})</small></span>
+        <Icon name="chevU" size={15} className="chev"/>
+      </div>
+      {open && (
+        <div className="drawer-body scrollthin" style={{fontSize:13}}>
+          <div style={{display:'flex',flexWrap:'wrap',gap:'6px 18px',marginBottom:10,color:'var(--ink-3)'}}>
+            <span>input (PDF+prompt): <b className="mono">{(cost.input_tokens||0).toLocaleString()}</b> tok</span>
+            <span>output: <b className="mono">{(cost.output_tokens||0).toLocaleString()}</b> tok</span>
+            <span>โมเดล: {cost.model}</span>
+          </div>
+          <div className="logline">
+            <span className="tk">🌐</span>
+            <span><span className="em">[ต้นทุนกลาง]</span> ค่าอ่าน PDF+prompt {baht(cost.shared_input_thb)} — แชร์ทุกหมวด (ถ้าแยกถอดทีละหมวดจะเสียก้อนนี้ซ้ำทุกครั้ง)</span>
+          </div>
+          {perCat.map((c,i)=>(
+            <div className="logline" key={i}>
+              <span className="tk">📊</span>
+              <span><span className="em">[{c.category}]</span> {c.rows} รายการ · output ~{baht(c.thb_est)}</span>
+            </div>
+          ))}
+          <div style={{marginTop:8,fontSize:12,color:'var(--ink-4)',lineHeight:1.6}}>
+            {cost._note}
+          </div>
+        </div>
       )}
     </div>
   );
