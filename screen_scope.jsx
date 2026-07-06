@@ -66,7 +66,9 @@ function classifyAnalyzeError(err, elapsed){
   }
   // API key ผิด/หมดเครดิต = ปัญหาบัญชีฝั่งเรา ผู้ใช้ retry เองไม่หาย ต้องแจ้งแอดมิน
   //   (เช็คก่อน gateway/overload เพราะ error ห่อว่า "claude api ..." เสมอ)
-  if(/invalid x-api-key|authentication_error|api[_ ]?key|credit balance|billing/.test(raw)){
+  // Anthropic 401/403 = key ผิด/หมดอายุ (บางครั้ง body ว่าง เหลือแค่ "claude api http=401")
+  //   ต่างจาก session-401 ของ Supabase (ไม่มีคำว่า "claude api") — เช็คก่อนกิ่ง session
+  if(/invalid x-api-key|authentication_error|api[_ ]?key|credit balance|billing|claude api http=40[13]/.test(raw)){
     return { title:'ระบบ AI ตั้งค่าไม่พร้อม',
       hint:'คีย์ API หรือเครดิตของระบบมีปัญหา — กรุณาแจ้งผู้ดูแลระบบ (retry เองไม่ช่วย)' };
   }
