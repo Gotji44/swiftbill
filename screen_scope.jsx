@@ -655,6 +655,26 @@ function ScopeScreen({ project, uploadData, onConfirm, onAnalyzingChange }){
             <div className="lbl">ขอบเขตงานที่เลือก <small>{scope.length} รายการ</small></div>
             <div className="val tnum">{baht(scopeFee)}</div>
           </div>
+          {/* แจกแจงหมวดที่เลือก จัดกลุ่มตามสายงาน — กด × เพื่อเอาออกได้ */}
+          {DISC_OPTS.filter(o=>discs.includes(o.id)).map(o=>{
+            const cats = SCOPE_ITEMS.filter(it=>(it.disc||'str')===o.id && scope.includes(it.id));
+            if(!cats.length) return null;
+            return (
+              <div key={o.id} style={{margin:'2px 0 6px',paddingLeft:2}}>
+                <div style={{fontSize:11,fontWeight:700,color:'var(--ink-4)',margin:'4px 0 3px'}}>หมวด{o.th.replace('งาน','')}</div>
+                {cats.map(it=>(
+                  <div key={it.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',fontSize:12.5,color:'var(--ink-3)',padding:'2px 0'}}>
+                    <span style={{display:'flex',alignItems:'center',gap:6}}>
+                      <button onClick={()=>toggleScope(it.id)} title="เอาหมวดนี้ออก"
+                        style={{border:'none',background:'none',cursor:'pointer',color:'var(--ink-4)',fontSize:15,lineHeight:1,padding:'0 2px'}}>×</button>
+                      {it.th}
+                    </span>
+                    <span className="tnum" style={{color:'var(--ink-4)'}}>{baht(it.base)}</span>
+                  </div>
+                ))}
+              </div>
+            );
+          })}
           <div className={'qline '+(engFee?'':'muted')}>
             <div className="lbl">วิศวกรรับรอง</div>
             <div className="val tnum">{engFee?baht(engFee):'—'}</div>
