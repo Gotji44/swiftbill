@@ -64,11 +64,22 @@ function classifyAnalyzeError(err, elapsed){
     return { title:'AI ใช้เวลาประมวลผลนานเกินกำหนด',
       hint:'แบบอาจมีหลายแผ่นหรือไฟล์ใหญ่ · ลองลดขอบเขตงาน (เลือกหมวดน้อยลง) หรือแยกอัปโหลดทีละไฟล์ แล้วกด “ลองใหม่”' };
   }
-  if(/401|403|unauthorized|forbidden|jwt|session/.test(raw)){
+  // API key ผิด/หมดเครดิต = ปัญหาบัญชีฝั่งเรา ผู้ใช้ retry เองไม่หาย ต้องแจ้งแอดมิน
+  //   (เช็คก่อน gateway/overload เพราะ error ห่อว่า "claude api ..." เสมอ)
+  if(/invalid x-api-key|authentication_error|api[_ ]?key|credit balance|billing/.test(raw)){
+    return { title:'ระบบ AI ตั้งค่าไม่พร้อม',
+      hint:'คีย์ API หรือเครดิตของระบบมีปัญหา — กรุณาแจ้งผู้ดูแลระบบ (retry เองไม่ช่วย)' };
+  }
+  // 5xx/502/520/522/524 = เซิร์ฟเวอร์ AI ต้นทาง (Anthropic/Cloudflare) ขัดข้องชั่วคราว
+  if(/http=5\d\d|502|503|504|520|521|522|523|524|bad gateway|gateway|cloudflare/.test(raw)){
+    return { title:'เซิร์ฟเวอร์ AI ต้นทางขัดข้องชั่วคราว',
+      hint:'ระบบ Claude ฝั่งผู้ให้บริการมีปัญหาชั่วขณะ (มักหายใน 1–2 นาที) · รอสักครู่แล้วกด “ลองใหม่”' };
+  }
+  if(/(^|[^0-9])401([^0-9]|$)|403|unauthorized|forbidden|jwt|session/.test(raw)){
     return { title:'เซสชันหมดอายุ',
       hint:'กรุณาออกจากระบบแล้วเข้าใหม่ จากนั้นลองอีกครั้ง' };
   }
-  if(/api[_ ]?key|anthropic|claude|overloaded|rate|429|529/.test(raw)){
+  if(/anthropic|claude|overloaded|rate|429|529/.test(raw)){
     return { title:'บริการ AI ไม่พร้อมใช้งานชั่วคราว',
       hint:'ระบบ AI กำลังมีคำขอจำนวนมาก · รอสักครู่แล้วกด “ลองใหม่”' };
   }
