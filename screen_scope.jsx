@@ -95,8 +95,8 @@ function classifyAnalyzeError(err, elapsed){
 
 function ScopeScreen({ project, uploadData, onConfirm, onAnalyzingChange }){
   const toast = useToast();
-  const [disc,setDisc] = useState('str');   // สายงาน: str โครงสร้าง / arch สถาปัตย์
-  const [scope,setScope] = useState(DISC_DEFAULT_SCOPE.str);
+  const [disc,setDisc] = useState(null);   // สายงาน: null=ยังไม่เลือก · str โครงสร้าง / arch สถาปัตย์
+  const [scope,setScope] = useState([]);   // เริ่มว่าง — หมวดย่อยจะโผล่หลังเลือกสายงาน (กรอบแดง→เขียว)
   // สลับสายงาน → รีเซ็ต scope เป็นค่าเริ่มต้นของสายนั้น (หมวดสองสายผสมกันไม่ได้ — prompt คนละก้อน)
   const switchDisc = (id)=>{ if(id!==disc){ setDisc(id); setScope(DISC_DEFAULT_SCOPE[id]); } };
   const [tier,setTier] = useState('engineer');
@@ -477,7 +477,7 @@ function ScopeScreen({ project, uploadData, onConfirm, onAnalyzingChange }){
           <div className="sec-head">
             <div className="sec-num">A</div>
             <div className="sec-title">เลือกขอบเขตงาน</div>
-            <div className="sec-req">เลือกอย่างน้อย 1 รายการ · เลือกแล้ว {scope.length}</div>
+            <div className="sec-req">{disc ? `เลือกอย่างน้อย 1 รายการ · เลือกแล้ว ${scope.length}` : 'เริ่มจากเลือกสายงาน'}</div>
           </div>
           {/* สายงาน: โครงสร้าง / สถาปัตย์ — สลับแล้วรายการหมวดด้านล่างเปลี่ยนตาม */}
           <div style={{display:'flex',gap:10,marginBottom:14}}>
@@ -495,21 +495,29 @@ function ScopeScreen({ project, uploadData, onConfirm, onAnalyzingChange }){
               );
             })}
           </div>
-          <div className="opt-grid cols3">
-            {SCOPE_ITEMS.filter(it=>(it.disc||'str')===disc).map(it=>{
-              const on = scope.includes(it.id);
-              return (
-                <div key={it.id} className={'opt '+(on?'sel':'')} onClick={()=>toggleScope(it.id)}>
-                  <div className="opt-ic" style={on?{color:`var(${it.color})`}:{}}>{it.icon}</div>
-                  <div className="opt-body">
-                    <div className="opt-t">{it.th}</div>
-                    <div className="opt-d">เริ่ม {baht(it.base)}</div>
+          {/* หมวดย่อยจะแสดงหลังเลือกสายงานด้านบนแล้วเท่านั้น — ลดความรกตา ใช้ง่ายขึ้น */}
+          {disc ? (
+            <div className="opt-grid cols3">
+              {SCOPE_ITEMS.filter(it=>(it.disc||'str')===disc).map(it=>{
+                const on = scope.includes(it.id);
+                return (
+                  <div key={it.id} className={'opt '+(on?'sel':'')} onClick={()=>toggleScope(it.id)}>
+                    <div className="opt-ic" style={on?{color:`var(${it.color})`}:{}}>{it.icon}</div>
+                    <div className="opt-body">
+                      <div className="opt-t">{it.th}</div>
+                      <div className="opt-d">เริ่ม {baht(it.base)}</div>
+                    </div>
+                    <div className="opt-check"><Icon name="check" size={14}/></div>
                   </div>
-                  <div className="opt-check"><Icon name="check" size={14}/></div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div style={{padding:'22px 16px',textAlign:'center',color:'var(--ink-3)',fontSize:13.5,
+              border:'1.5px dashed var(--border)',borderRadius:12,background:'var(--surface)'}}>
+              👆 เลือกสายงานด้านบนก่อน เพื่อแสดงหมวดงานย่อยให้เลือก
+            </div>
+          )}
         </div>
 
         {/* Section B */}
