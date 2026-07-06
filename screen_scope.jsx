@@ -557,11 +557,6 @@ function ScopeScreen({ project, uploadData, onConfirm, onAnalyzingChange }){
               );
             })}
           </div>
-          {discs.length>1 && (
-            <div style={{fontSize:11.5,color:'var(--ink-4)',marginBottom:12}}>
-              เลือก {discs.length} สายงาน — ระบบจะถอดแยกทีละสายแล้วรวมผลเป็นชุดเดียว (ค่า AI/เวลาเพิ่มตามจำนวนสาย)
-            </div>
-          )}
           {/* หมวดย่อยแสดงเฉพาะสายที่เลือก — จัดกลุ่มตามสายงานเมื่อเลือกมากกว่า 1 */}
           {discs.length ? (
             DISC_OPTS.filter(o=>discs.includes(o.id)).map(o=>(
