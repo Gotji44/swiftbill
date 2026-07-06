@@ -93,12 +93,63 @@ function classifyAnalyzeError(err, elapsed){
     hint:(err && err.message) ? err.message : 'กรุณากด “ลองใหม่” อีกครั้ง' };
 }
 
+// ── รวมค่าใช้จ่าย AI ของหลายรอบถอด (แต่ละสายงาน = 1 call) ให้ผู้ใช้เห็นยอดจริงรวม ──
+function mergeCost(a, b){
+  if(!a) return b; if(!b) return a;
+  const n = (o,k)=>Number(o?.[k])||0;
+  const r4 = v=>Math.round(v*10000)/10000, r2 = v=>Math.round(v*100)/100;
+  return {
+    model: a.model || b.model,
+    input_tokens: n(a,'input_tokens')+n(b,'input_tokens'),
+    output_tokens: n(a,'output_tokens')+n(b,'output_tokens'),
+    cache_read_tokens: n(a,'cache_read_tokens')+n(b,'cache_read_tokens'),
+    cache_write_tokens: n(a,'cache_write_tokens')+n(b,'cache_write_tokens'),
+    total_usd: r4(n(a,'total_usd')+n(b,'total_usd')),
+    total_thb: r2(n(a,'total_thb')+n(b,'total_thb')),
+    shared_input_usd: r4(n(a,'shared_input_usd')+n(b,'shared_input_usd')),
+    shared_input_thb: r2(n(a,'shared_input_thb')+n(b,'shared_input_thb')),
+    output_usd: r4(n(a,'output_usd')+n(b,'output_usd')),
+    per_category: [...(Array.isArray(a.per_category)?a.per_category:[]), ...(Array.isArray(b.per_category)?b.per_category:[])]
+      .sort((x,y)=>(Number(y.usd_est)||0)-(Number(x.usd_est)||0)),
+    _note: a._note || b._note,
+  };
+}
+// ── รวมผลถอดหลายสายงานเป็นชุดเดียว (sheets/plan_codes/levels keys ไม่ชนกันข้ามสาย) ──
+function mergeBoq(a, b){
+  if(!a) return b; if(!b) return a;
+  const sa = a.summary||{}, sb = b.summary||{};
+  const summary = { ...sa, ...sb };
+  summary.total_items = (Number(sa.total_items)||(a.items||[]).length) + (Number(sb.total_items)||(b.items||[]).length);
+  const w = [sa._warning, sb._warning].filter(Boolean);
+  if(w.length) summary._warning = w.join(' | '); else delete summary._warning;
+  summary._cost = mergeCost(sa._cost, sb._cost);
+  return {
+    ...a,
+    sheets:     { ...(a.sheets||{}),     ...(b.sheets||{}) },
+    plan_codes: { ...(a.plan_codes||{}), ...(b.plan_codes||{}) },
+    levels:     { ...(a.levels||{}),     ...(b.levels||{}) },
+    items:      [ ...(a.items||[]), ...(b.items||[]) ],
+    summary,
+  };
+}
+
 function ScopeScreen({ project, uploadData, onConfirm, onAnalyzingChange }){
   const toast = useToast();
-  const [disc,setDisc] = useState(null);   // สายงาน: null=ยังไม่เลือก · str โครงสร้าง / arch สถาปัตย์
+  const [discs,setDiscs] = useState([]);   // สายงานที่เลือก (หลายสายได้) — ว่าง=ยังไม่เลือก
   const [scope,setScope] = useState([]);   // เริ่มว่าง — หมวดย่อยจะโผล่หลังเลือกสายงาน (กรอบแดง→เขียว)
-  // สลับสายงาน → รีเซ็ต scope เป็นค่าเริ่มต้นของสายนั้น (หมวดสองสายผสมกันไม่ได้ — prompt คนละก้อน)
-  const switchDisc = (id)=>{ if(id!==disc){ setDisc(id); setScope(DISC_DEFAULT_SCOPE[id]); } };
+  // เลือก/ยกเลิกสายงาน: เปิด→เติมหมวดเริ่มต้นของสายนั้น, ปิด→ตัดหมวดของสายนั้นออกจาก scope
+  const toggleDisc = (id)=>{
+    setDiscs(ds=>{
+      const on = ds.includes(id);
+      if(on){
+        const catsOfDisc = SCOPE_ITEMS.filter(it=>(it.disc||'str')===id).map(it=>it.id);
+        setScope(s=>s.filter(x=>!catsOfDisc.includes(x)));
+        return ds.filter(x=>x!==id);
+      }
+      setScope(s=>Array.from(new Set([...s, ...(DISC_DEFAULT_SCOPE[id]||[])])));
+      return [...ds, id];
+    });
+  };
   const [tier,setTier] = useState('engineer');
   const [pricing,setPricing] = useState('qty_only'); // ค่าเริ่มต้น: ถอดปริมาณอย่างเดียว (ยังไม่จับคู่ราคา)
   const [showQuote,setShowQuote] = useState(false);
@@ -189,56 +240,68 @@ function ScopeScreen({ project, uploadData, onConfirm, onAnalyzingChange }){
           if(r?.data?.session?.access_token) accessToken = r.data.session.access_token;
         }
       } catch(authErr) { /* ใช้ accessToken เดิมต่อ */ }
-      const selectedScope = scope.map(id => SCOPE_CAT[id]).filter(Boolean);
+      // จัดกลุ่มหมวดที่เลือกตามสายงาน — prompt คนละก้อน → รันถอดแยกทีละสายแล้วรวมผลเป็นชุดเดียว
+      const DISC_TH = { structural:'โครงสร้าง', arch:'สถาปัตย์' };
+      const byDisc = { structural: [], arch: [] };
+      scope.forEach(id => {
+        const it = SCOPE_ITEMS.find(x=>x.id===id);
+        const api = (it?.disc === 'arch') ? 'arch' : 'structural';
+        if(SCOPE_CAT[id]) byDisc[api].push(SCOPE_CAT[id]);
+      });
+      const passes = [['structural', byDisc.structural], ['arch', byDisc.arch]].filter(([,c])=>c.length>0);
 
       const aiT0 = Date.now();   // จับเวลาเฉพาะส่วน AI ถอดปริมาณ (ตั้งแต่ส่งแบบจนได้ผล)
 
-      // สร้าง AbortController สำหรับ client-side timeout
-      const clientAC = new AbortController();
-      abortRef.current = clientAC;
-      const clientTimer = setTimeout(() => clientAC.abort('client_timeout'), CLIENT_TIMEOUT);
+      // รันถอด 1 สายงาน (submit + poll async หรือ sync fallback) → คืน boqData ของสายนั้น
+      const runPass = async (disciplineApi, passScope, passIdx, passTotal) => {
+        const prefix = passTotal > 1 ? `[${passIdx+1}/${passTotal} ${DISC_TH[disciplineApi]}] ` : '';
 
-      let submitRes;
-      try {
-        submitRes = await fetch('https://zokzcjbvjcxfjpcjsegx.supabase.co/functions/v1/analyze-drawing', {
-          method: 'POST',
-          signal: clientAC.signal,
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${accessToken}`,
-            'apikey': 'sb_publishable_nL-wFMwEzKss2HZOylspIA_9ypFMEWv'
-          },
-          body: JSON.stringify({
-            storagePath:   uploadData.storagePath,
-            fileName:      uploadData.fileName,
-            projectName:   project.name,
-            selectedScope,
-            discipline:    disc === 'arch' ? 'arch' : 'structural',
-          })
-        });
-      } finally {
-        clearTimeout(clientTimer);
-        abortRef.current = null;
-      }
+        // AbortController สำหรับ client-side timeout (ต่อรอบสายงาน)
+        const clientAC = new AbortController();
+        abortRef.current = clientAC;
+        const clientTimer = setTimeout(() => clientAC.abort('client_timeout'), CLIENT_TIMEOUT);
 
-      if(!submitRes.ok){
-        let detail = '';
-        try { const e = await submitRes.json(); detail = e.error || e.message || ''; }
-        catch(_) { detail = `HTTP ${submitRes.status}`; }
-        throw new Error(detail || `ส่งคำขอไม่สำเร็จ (HTTP ${submitRes.status})`);
-      }
+        let submitRes;
+        try {
+          submitRes = await fetch('https://zokzcjbvjcxfjpcjsegx.supabase.co/functions/v1/analyze-drawing', {
+            method: 'POST',
+            signal: clientAC.signal,
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${accessToken}`,
+              'apikey': 'sb_publishable_nL-wFMwEzKss2HZOylspIA_9ypFMEWv'
+            },
+            body: JSON.stringify({
+              storagePath:   uploadData.storagePath,
+              fileName:      uploadData.fileName,
+              projectName:   project.name,
+              selectedScope: passScope,
+              discipline:    disciplineApi,
+            })
+          });
+        } finally {
+          clearTimeout(clientTimer);
+          abortRef.current = null;
+        }
 
-      const submitResult = await submitRes.json();
+        if(!submitRes.ok){
+          let detail = '';
+          try { const e = await submitRes.json(); detail = e.error || e.message || ''; }
+          catch(_) { detail = `HTTP ${submitRes.status}`; }
+          throw new Error(detail || `ส่งคำขอไม่สำเร็จ (HTTP ${submitRes.status})`);
+        }
 
-      // ── Async job path: ได้ job_id → poll DB ──────────────────────
-      if(submitResult.job_id){
-        const stages = buildAnalyzeStages(scope);   // ลำดับข้อความตามหมวดที่เลือก
-        setAnalyzeStep(2);
-        setAnalyzeMsg(stages[0]);
-        const jobId = submitResult.job_id;
-        const POLL_INTERVAL = 5000;          // poll ทุก 5 วิ
+        const submitResult = await submitRes.json();
 
-        const boqData = await new Promise((resolve, reject) => {
+        // ── Async job path: ได้ job_id → poll DB ──────────────────────
+        if(submitResult.job_id){
+          const stages = buildAnalyzeStages(scope);   // ลำดับข้อความตามหมวดที่เลือก
+          setAnalyzeStep(2);
+          setAnalyzeMsg(prefix + stages[0]);
+          const jobId = submitResult.job_id;
+          const POLL_INTERVAL = 5000;          // poll ทุก 5 วิ
+
+          return await new Promise((resolve, reject) => {
           const pollStart = Date.now();
           let stopped = false;          // กันไม่ให้ settle ซ้ำ
           let pollTimer = null;
@@ -311,7 +374,7 @@ function ScopeScreen({ project, uploadData, onConfirm, onAnalyzingChange }){
               if(job?.status === 'error') { finish(reject, new Error(job.error_msg || 'AI ประมวลผลไม่สำเร็จ')); return; }
               const waited = Math.floor((Date.now()-pollStart)/1000);
               const idx = Math.min(Math.floor(waited/STAGE_SECS), stages.length-1);
-              setAnalyzeMsg(stages[idx]);
+              setAnalyzeMsg(prefix + stages[idx]);
             } catch(e){
               // query รอบนี้ค้าง/พลาด → ไม่ล้มทั้งกระบวนการ ปล่อยให้รอบถัดไปลองใหม่ จน watchdog ตัดเอง
               if(stopped) return;
@@ -335,28 +398,27 @@ function ScopeScreen({ project, uploadData, onConfirm, onAnalyzingChange }){
             poll();
           };
           document.addEventListener('visibilitychange', onVisible);
-        });
+          });
+        }
 
-        setAnalyzeStep(3);
-        const warnA = boqData?.summary?._warning;
-        setAnalyzeMsg(`พบ ${boqData?.items?.length || 0} รายการ`);
-        if(warnA) console.warn('analysis warning:', warnA);
-        toast(warnA ? '⚠️ วิเคราะห์เสร็จ แต่ข้อมูลบางส่วนอาจไม่ครบ — ดูคำแนะนำในผลลัพธ์' : 'วิเคราะห์แบบสำเร็จ ✓');
-        onAnalyzingChange && onAnalyzingChange(false);
-        onConfirm(boqData, withPrice, Math.round((Date.now()-aiT0)/1000));
-        return; // ออกจาก try block
+        // ── Sync fallback path (local dev / runtime เก่า) → คืน data ตรง ๆ ──
+        return submitResult.data;
+      };
+
+      // รันทีละสายงานตามลำดับ (แต่ละ job เล็กพอจบใต้เพดานเวลา) แล้วรวมผลเป็นชุดเดียว
+      let merged = null;
+      for(let i=0;i<passes.length;i++){
+        const bd = await runPass(passes[i][0], passes[i][1], i, passes.length);
+        merged = mergeBoq(merged, bd);
       }
 
-      // ── Sync fallback path (local dev / runtime เก่า) ──────────
-      const boqData = submitResult.data;
       setAnalyzeStep(3);
-      const warnS = boqData?.summary?._warning;
-      setAnalyzeMsg(`พบ ${boqData?.items?.length || 0} รายการ`);
-      await new Promise(r=>setTimeout(r,700));
-      if(warnS) console.warn('analysis warning:', warnS);
-      toast(warnS ? '⚠️ วิเคราะห์เสร็จ แต่ข้อมูลบางส่วนอาจไม่ครบ — ดูคำแนะนำในผลลัพธ์' : 'วิเคราะห์แบบสำเร็จ ✓');
+      const warnA = merged?.summary?._warning;
+      setAnalyzeMsg(`พบ ${merged?.items?.length || 0} รายการ`);
+      if(warnA) console.warn('analysis warning:', warnA);
+      toast(warnA ? '⚠️ วิเคราะห์เสร็จ แต่ข้อมูลบางส่วนอาจไม่ครบ — ดูคำแนะนำในผลลัพธ์' : 'วิเคราะห์แบบสำเร็จ ✓');
       onAnalyzingChange && onAnalyzingChange(false);
-      onConfirm(boqData, withPrice, Math.round((Date.now()-aiT0)/1000));
+      onConfirm(merged, withPrice, Math.round((Date.now()-aiT0)/1000));
 
     } catch(err) {
       const secs = (Date.now() - t0) / 1000;
@@ -477,41 +539,53 @@ function ScopeScreen({ project, uploadData, onConfirm, onAnalyzingChange }){
           <div className="sec-head">
             <div className="sec-num">A</div>
             <div className="sec-title">เลือกขอบเขตงาน</div>
-            <div className="sec-req">{disc ? `เลือกอย่างน้อย 1 รายการ · เลือกแล้ว ${scope.length}` : 'เริ่มจากเลือกสายงาน'}</div>
+            <div className="sec-req">{discs.length ? `เลือกอย่างน้อย 1 รายการ · เลือกแล้ว ${scope.length}` : 'เริ่มจากเลือกสายงาน (เลือกได้หลายสาย)'}</div>
           </div>
-          {/* สายงาน: โครงสร้าง / สถาปัตย์ — สลับแล้วรายการหมวดด้านล่างเปลี่ยนตาม */}
-          <div style={{display:'flex',gap:10,marginBottom:14}}>
+          {/* สายงาน: เลือกได้หลายสาย — แต่ละสายเผยหมวดย่อยของตัวเอง แล้วระบบถอดแยก+รวมผล */}
+          <div style={{display:'flex',gap:10,marginBottom:10}}>
             {DISC_OPTS.map(o=>{
-              const on = disc===o.id;
+              const on = discs.includes(o.id);
               return (
-                <button key={o.id} onClick={()=>switchDisc(o.id)}
+                <button key={o.id} onClick={()=>toggleDisc(o.id)}
                   style={{flex:1,textAlign:'left',cursor:'pointer',padding:'10px 14px',borderRadius:10,
                     border:'1.5px solid '+(on?'var(--primary)':'var(--border)'),
                     background:on?'var(--primary-soft)':'var(--surface)',
                     color:on?'var(--primary)':'var(--ink-3)'}}>
-                  <div style={{fontSize:14,fontWeight:700}}>{o.th}</div>
+                  <div style={{fontSize:14,fontWeight:700}}>{on?'✓ ':''}{o.th}</div>
                   <div style={{fontSize:11.5,marginTop:2,opacity:.85}}>{o.d}</div>
                 </button>
               );
             })}
           </div>
-          {/* หมวดย่อยจะแสดงหลังเลือกสายงานด้านบนแล้วเท่านั้น — ลดความรกตา ใช้ง่ายขึ้น */}
-          {disc ? (
-            <div className="opt-grid cols3">
-              {SCOPE_ITEMS.filter(it=>(it.disc||'str')===disc).map(it=>{
-                const on = scope.includes(it.id);
-                return (
-                  <div key={it.id} className={'opt '+(on?'sel':'')} onClick={()=>toggleScope(it.id)}>
-                    <div className="opt-ic" style={on?{color:`var(${it.color})`}:{}}>{it.icon}</div>
-                    <div className="opt-body">
-                      <div className="opt-t">{it.th}</div>
-                      <div className="opt-d">เริ่ม {baht(it.base)}</div>
-                    </div>
-                    <div className="opt-check"><Icon name="check" size={14}/></div>
-                  </div>
-                );
-              })}
+          {discs.length>1 && (
+            <div style={{fontSize:11.5,color:'var(--ink-4)',marginBottom:12}}>
+              เลือก {discs.length} สายงาน — ระบบจะถอดแยกทีละสายแล้วรวมผลเป็นชุดเดียว (ค่า AI/เวลาเพิ่มตามจำนวนสาย)
             </div>
+          )}
+          {/* หมวดย่อยแสดงเฉพาะสายที่เลือก — จัดกลุ่มตามสายงานเมื่อเลือกมากกว่า 1 */}
+          {discs.length ? (
+            DISC_OPTS.filter(o=>discs.includes(o.id)).map(o=>(
+              <div key={o.id} style={{marginBottom:10}}>
+                {discs.length>1 && (
+                  <div style={{fontSize:12.5,fontWeight:700,color:'var(--ink-3)',margin:'2px 2px 8px'}}>{o.th}</div>
+                )}
+                <div className="opt-grid cols3">
+                  {SCOPE_ITEMS.filter(it=>(it.disc||'str')===o.id).map(it=>{
+                    const on = scope.includes(it.id);
+                    return (
+                      <div key={it.id} className={'opt '+(on?'sel':'')} onClick={()=>toggleScope(it.id)}>
+                        <div className="opt-ic" style={on?{color:`var(${it.color})`}:{}}>{it.icon}</div>
+                        <div className="opt-body">
+                          <div className="opt-t">{it.th}</div>
+                          <div className="opt-d">เริ่ม {baht(it.base)}</div>
+                        </div>
+                        <div className="opt-check"><Icon name="check" size={14}/></div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))
           ) : (
             <div style={{padding:'22px 16px',textAlign:'center',color:'var(--ink-3)',fontSize:13.5,
               border:'1.5px dashed var(--border)',borderRadius:12,background:'var(--surface)'}}>
