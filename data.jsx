@@ -44,7 +44,7 @@ const PROJECTS = [
 ];
 
 // ---- Scope work items (Step 5 section A) ----
-// disc: สายงาน — 'str' โครงสร้าง / 'arch' สถาปัตย์ (หน้า scope กรองตามโหมดที่ผู้ใช้เลือก)
+// disc: สายงาน — 'str' โครงสร้าง / 'arch' สถาปัตย์ / 'sani' สุขาภิบาล / 'elec' ไฟฟ้า (หน้า scope กรองตามโหมดที่ผู้ใช้เลือก)
 const SCOPE_ITEMS = [
   { id:'footing', th:'ฐานราก', icon:'▢', cat:'ฐานราก', base:2200, color:'--indigo', disc:'str' },
   { id:'column',  th:'เสา',    icon:'▮', cat:'เสา',    base:2600, color:'--cyan',   disc:'str' },
@@ -56,6 +56,14 @@ const SCOPE_ITEMS = [
   { id:'door_window',  th:'ประตู-หน้าต่าง', icon:'◫', cat:'ประตู-หน้าต่าง', base:1800, color:'--cyan',   disc:'arch' },
   { id:'floor_finish', th:'พื้นผิว',        icon:'▨', cat:'พื้นผิว',        base:2000, color:'--amber',  disc:'arch' },
   { id:'ceiling',      th:'ฝ้าเพดาน',       icon:'▭', cat:'ฝ้าเพดาน',       base:1600, color:'--purple', disc:'arch' },
+  { id:'sani_ware',  th:'สุขภัณฑ์',          icon:'⚙', cat:'สุขภัณฑ์',          base:2200, color:'--cyan',   disc:'sani' },
+  { id:'sani_water', th:'ท่อน้ำดี',          icon:'╪', cat:'ท่อน้ำดี',          base:1800, color:'--indigo', disc:'sani' },
+  { id:'sani_drain', th:'ท่อน้ำทิ้ง-โสโครก', icon:'╫', cat:'ท่อน้ำทิ้ง-โสโครก', base:1900, color:'--amber',  disc:'sani' },
+  { id:'sani_tank',  th:'บ่อ-ถังบำบัด',      icon:'◍', cat:'บ่อ-ถังบำบัด',      base:2000, color:'--green',  disc:'sani' },
+  { id:'elec_light',  th:'ดวงโคม',            icon:'✷', cat:'ดวงโคม',            base:2000, color:'--amber',  disc:'elec' },
+  { id:'elec_outlet', th:'เต้ารับ-สวิตช์',    icon:'⊡', cat:'เต้ารับ-สวิตช์',    base:1800, color:'--orange', disc:'elec' },
+  { id:'elec_wire',   th:'สายไฟ-ท่อร้อยสาย',  icon:'⌇', cat:'สายไฟ-ท่อร้อยสาย',  base:2200, color:'--purple', disc:'elec' },
+  { id:'elec_panel',  th:'ตู้-แผงจ่ายไฟ',     icon:'▤', cat:'ตู้-แผงจ่ายไฟ',     base:2600, color:'--cyan',   disc:'elec' },
 ];
 
 // ---- Category color map (results accordion / bboxes) ----
@@ -63,6 +71,8 @@ const CAT_COLOR = {
   'ฐานราก':'#6366f1', 'เสา':'#0891b2', 'คาน':'#b45309',
   'พื้น':'#9333ea', 'บันได':'#ea580c', 'หลังคา':'#15803d',
   'ผนัง':'#0d9488', 'ประตู-หน้าต่าง':'#db2777', 'พื้นผิว':'#7c3aed', 'ฝ้าเพดาน':'#0369a1',
+  'สุขภัณฑ์':'#0891b2', 'ท่อน้ำดี':'#4f46e5', 'ท่อน้ำทิ้ง-โสโครก':'#b45309', 'บ่อ-ถังบำบัด':'#15803d',
+  'ดวงโคม':'#d97706', 'เต้ารับ-สวิตช์':'#dc2626', 'สายไฟ-ท่อร้อยสาย':'#7c3aed', 'ตู้-แผงจ่ายไฟ':'#0f766e',
 };
 
 // ---- Pre-extracted quantities (Step 11) ----

@@ -5,16 +5,22 @@ const SCOPE_CAT = {
   footing:'ฐานราก', column:'เสา', beam:'คาน',
   slab:'พื้น', stair:'บันได', roof:'หลังคา',
   wall:'ผนัง', door_window:'ประตู-หน้าต่าง', floor_finish:'พื้นผิว', ceiling:'ฝ้าเพดาน',
+  sani_ware:'สุขภัณฑ์', sani_water:'ท่อน้ำดี', sani_drain:'ท่อน้ำทิ้ง-โสโครก', sani_tank:'บ่อ-ถังบำบัด',
+  elec_light:'ดวงโคม', elec_outlet:'เต้ารับ-สวิตช์', elec_wire:'สายไฟ-ท่อร้อยสาย', elec_panel:'ตู้-แผงจ่ายไฟ',
 };
 
 // ---- สายงาน (discipline) — เลือกได้ทีละโหมด เพราะ Edge Function ใช้ prompt คนละก้อน ----
 const DISC_OPTS = [
   { id:'str',  th:'งานโครงสร้าง', d:'ฐานราก เสา คาน พื้น บันได หลังคา' },
   { id:'arch', th:'งานสถาปัตย์',  d:'ผนัง ประตู-หน้าต่าง พื้นผิว ฝ้า' },
+  { id:'sani', th:'งานสุขาภิบาล', d:'สุขภัณฑ์ ท่อน้ำดี ท่อน้ำทิ้ง-โสโครก บ่อ-ถังบำบัด' },
+  { id:'elec', th:'งานไฟฟ้า',     d:'ดวงโคม เต้ารับ-สวิตช์ สายไฟ-ท่อร้อยสาย ตู้-แผงจ่ายไฟ' },
 ];
 const DISC_DEFAULT_SCOPE = {
   str:  ['footing','column','beam','slab','stair'],
   arch: ['wall','door_window','floor_finish','ceiling'],
+  sani: ['sani_ware','sani_water','sani_drain','sani_tank'],
+  elec: ['elec_light','elec_outlet','elec_wire','elec_panel'],
 };
 
 const ANALYZE_STEPS = [
@@ -38,8 +44,16 @@ const SCOPE_STAGE_MSGS = {
   door_window:  ['กำลังอ่านตารางประตู-หน้าต่าง (D1, W1…)', 'นับจำนวนบานจากผังทุกชั้น', 'กระทบยอดจำนวนบานกับตาราง'],
   floor_finish: ['กำลังอ่าน Room Finish Schedule', 'ถอดพื้นที่วัสดุปูพื้นรายห้อง', 'คำนวณบัวเชิงผนัง'],
   ceiling:      ['กำลังอ่านผังฝ้าเพดานและระดับฝ้า', 'ถอดพื้นที่ฝ้ารายห้อง'],
+  sani_ware:    ['กำลังอ่านตารางสุขภัณฑ์ (WC, L, FD…)', 'นับจำนวนสุขภัณฑ์จากผังทีละจุด', 'กระทบยอดจำนวนกับตาราง'],
+  sani_water:   ['กำลังไล่แนวท่อน้ำดีจากผัง/Isometric', 'แยกความยาวท่อตามขนาด Ø'],
+  sani_drain:   ['กำลังไล่แนวท่อน้ำทิ้ง/โสโครก/อากาศ', 'แยกความยาวท่อตามขนาด Ø และระบบ'],
+  sani_tank:    ['กำลังอ่านแบบขยายบ่อ/ถังบำบัด', 'นับจำนวนบ่อพัก/ถังบำบัด'],
+  elec_light:   ['กำลังอ่านผังไฟฟ้าแสงสว่าง + Legend', 'นับดวงโคมทีละจุดจากผัง', 'กระทบยอดจำนวนกับตาราง'],
+  elec_outlet:  ['กำลังอ่านผังเต้ารับ-กำลัง', 'นับเต้ารับและสวิตช์ทีละจุด'],
+  elec_wire:    ['กำลังอ่าน Single-Line + Load Schedule', 'แยกสายไฟ/ท่อตามวงจรและขนาด sq.mm'],
+  elec_panel:   ['กำลังอ่านตารางโหลดและ SLD', 'ถอดตู้/แผงจ่ายไฟและระบบสายดิน'],
 };
-const SCOPE_STAGE_ORDER = ['footing','column','beam','slab','stair','roof','wall','door_window','floor_finish','ceiling'];
+const SCOPE_STAGE_ORDER = ['footing','column','beam','slab','stair','roof','wall','door_window','floor_finish','ceiling','sani_ware','sani_water','sani_drain','sani_tank','elec_light','elec_outlet','elec_wire','elec_panel'];
 const STAGE_SECS = 7;   // เปลี่ยนข้อความทุก ~7 วิ
 
 // สร้างลำดับข้อความตามหมวดที่เลือก (เรียงตามลำดับการถอดแบบจริง)
@@ -241,14 +255,17 @@ function ScopeScreen({ project, uploadData, onConfirm, onAnalyzingChange }){
         }
       } catch(authErr) { /* ใช้ accessToken เดิมต่อ */ }
       // จัดกลุ่มหมวดที่เลือกตามสายงาน — prompt คนละก้อน → รันถอดแยกทีละสายแล้วรวมผลเป็นชุดเดียว
-      const DISC_TH = { structural:'โครงสร้าง', arch:'สถาปัตย์' };
-      const byDisc = { structural: [], arch: [] };
+      // registry: เพิ่มสายใหม่ = เติม DISC_API + DISC_TH + PASS_ORDER (ไม่ต้องแก้ลูป)
+      const DISC_API = { str:'structural', arch:'arch', sani:'sani', elec:'elec' };
+      const DISC_TH  = { structural:'โครงสร้าง', arch:'สถาปัตย์', sani:'สุขาภิบาล', elec:'ไฟฟ้า' };
+      const PASS_ORDER = ['structural','arch','sani','elec'];
+      const byDisc = {};
       scope.forEach(id => {
         const it = SCOPE_ITEMS.find(x=>x.id===id);
-        const api = (it?.disc === 'arch') ? 'arch' : 'structural';
-        if(SCOPE_CAT[id]) byDisc[api].push(SCOPE_CAT[id]);
+        const api = DISC_API[it?.disc] || 'structural';
+        if(SCOPE_CAT[id]) (byDisc[api] = byDisc[api] || []).push(SCOPE_CAT[id]);
       });
-      const passes = [['structural', byDisc.structural], ['arch', byDisc.arch]].filter(([,c])=>c.length>0);
+      const passes = PASS_ORDER.map(api => [api, byDisc[api] || []]).filter(([,c])=>c.length>0);
 
       const aiT0 = Date.now();   // จับเวลาเฉพาะส่วน AI ถอดปริมาณ (ตั้งแต่ส่งแบบจนได้ผล)
 

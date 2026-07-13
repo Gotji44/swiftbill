@@ -405,6 +405,163 @@ function generateBOQExcel(project, boqData) {
     NOTE(`3. ถอดโดย SwiftBill จากแบบ "${project.name}" — ${today}`),
   ], [18,30,12,8,24]);
 
+  // ══════════ งานสุขาภิบาล (Sheet 30-34) ══════════════════════════
+  // ── Sheet 30: สุขภัณฑ์ ───────────────────────────────────────
+  const swRows = sh.sanitary_ware || itemsToSheetRows(items, 'สุขภัณฑ์');
+  const sw_header = ['รหัส','ชนิดสุขภัณฑ์','สเปก/วัสดุ','จำนวน (ชุด)','ตำแหน่ง','หมายเหตุ'];
+  const sw_data = swRows.map(r => [
+    r.code||'-', r.type||r.name||'-', r.material||'-',
+    r.count||r.qty||0, r.location||'-', r.notes||''
+  ]);
+  if (swRows.length) buildAndStyle(wb, '30_สุขภัณฑ์', [
+    T('Sheet 30 — สุขภัณฑ์ (นับตามผัง)'),
+    BL(),
+    H(sw_header), ...sw_data.map(D),
+    TT(['รวม','','',sumRow(sw_data,[3])[3]||0,'','']),
+  ], [10,24,26,10,20,20]);
+
+  // ── Sheet 31: ท่อน้ำดี ───────────────────────────────────────
+  const wpRows = sh.water_pipes || [];
+  const pipe_header = ['รหัส','ระบบ/ชนิด','วัสดุ/ชั้น','ขนาด Ø','ยาว (m)','ที่มา','ตำแหน่ง','หมายเหตุ'];
+  const wp_data = wpRows.map(r => [
+    r.code||'-', r.system||'-', r.material||'-', r.dia||'-',
+    n2(r.length_m||r.volume||0), r.basis||'-', r.location||'-', r.notes||''
+  ]);
+  if (wpRows.length) buildAndStyle(wb, '31_ท่อน้ำดี', [
+    T('Sheet 31 — ท่อประปาน้ำดี (แยกตามขนาด Ø · ที่มา: วัด/ประมาณ)'),
+    BL(),
+    H(pipe_header), ...wp_data.map(D),
+    TT(['รวม','','','',sumRow(wp_data,[4])[4]||0,'','','']),
+  ], [10,16,18,10,10,9,18,20]);
+
+  // ── Sheet 32: ท่อน้ำทิ้ง-โสโครก ──────────────────────────────
+  const dpRows = sh.drain_pipes || [];
+  const dp_data = dpRows.map(r => [
+    r.code||'-', r.type||'-', r.material||'-', r.dia||'-',
+    n2(r.length_m||r.volume||0), r.basis||'-', r.location||'-', r.notes||''
+  ]);
+  if (dpRows.length) buildAndStyle(wb, '32_ท่อน้ำทิ้ง-โสโครก', [
+    T('Sheet 32 — ท่อน้ำทิ้ง / โสโครก / อากาศ (แยกตามขนาด Ø · ที่มา: วัด/ประมาณ)'),
+    BL(),
+    H(pipe_header), ...dp_data.map(D),
+    TT(['รวม','','','',sumRow(dp_data,[4])[4]||0,'','','']),
+  ], [10,16,18,10,10,9,18,20]);
+
+  // ── Sheet 33: บ่อ-ถังบำบัด ───────────────────────────────────
+  const stRows = sh.sani_tanks || [];
+  const st_header = ['รหัส','ชนิด','ขนาด/ความจุ','จำนวน','ตำแหน่ง','หมายเหตุ'];
+  const st_data = stRows.map(r => [
+    r.code||'-', r.type||'-', r.size||'-',
+    r.count||r.qty||0, r.location||'-', r.notes||''
+  ]);
+  if (stRows.length) buildAndStyle(wb, '33_บ่อถังบำบัด', [
+    T('Sheet 33 — บ่อพัก / ถังบำบัด / บ่อดักไขมัน'),
+    BL(),
+    H(st_header), ...st_data.map(D),
+    TT(['รวม','','',sumRow(st_data,[3])[3]||0,'','']),
+  ], [10,24,18,10,20,20]);
+
+  // ── Sheet 34: สรุปงานสุขาภิบาล ───────────────────────────────
+  const hasSani = swRows.length || wpRows.length || dpRows.length || stRows.length;
+  if (hasSani) buildAndStyle(wb, '34_สรุปสุขาภิบาล', [
+    T('Sheet 34 — สรุปรวมงานสุขาภิบาล'),
+    BL(),
+    H(['หมวด','รายการ','ปริมาณ','หน่วย','หมายเหตุ']),
+    D(['1. สุขภัณฑ์','จำนวนชุดรวม',        sumRow(sw_data,[3])[3]||0,'ชุด','']),
+    D(['2. ท่อน้ำดี','ความยาวรวม',          n2(sumRow(wp_data,[4])[4]||0),'เมตร','แยกขนาด Ø ดู Sheet 31']),
+    D(['3. ท่อน้ำทิ้ง-โสโครก','ความยาวรวม', n2(sumRow(dp_data,[4])[4]||0),'เมตร','แยกขนาด Ø ดู Sheet 32']),
+    D(['4. บ่อ-ถังบำบัด','จำนวนรวม',        sumRow(st_data,[3])[3]||0,'บ่อ/ถัง','']),
+    BL(),
+    SB('หมายเหตุ'),
+    NOTE('1. ปริมาณนี้ยังไม่คำนวณราคา — ความยาวท่อที่อ่านจากแบบไม่ได้จะแสดงเป็น 0 (โปรดตรวจสอบและกรอกเพิ่ม)'),
+    NOTE('2. แนะนำ Wastage: ท่อ +5%, ข้อต่อ/อุปกรณ์คิดแยกตามระบบ'),
+    NOTE(`3. ถอดโดย SwiftBill จากแบบ "${project.name}" — ${today}`),
+  ], [18,30,12,10,24]);
+
+  // ══════════ งานไฟฟ้า (Sheet 40-44) ══════════════════════════════
+  // ── Sheet 40: ดวงโคม ─────────────────────────────────────────
+  const lumRows = sh.luminaires || itemsToSheetRows(items, 'ดวงโคม');
+  const lum_header = ['รหัส','ชนิดโคม','หลอด/สเปก','การติดตั้ง','จำนวน (ชุด)','ตำแหน่ง','หมายเหตุ'];
+  const lum_data = lumRows.map(r => [
+    r.code||'-', r.type||r.name||'-', r.lamp||'-', r.mount||'-',
+    r.count||r.qty||0, r.location||'-', r.notes||''
+  ]);
+  if (lumRows.length) buildAndStyle(wb, '40_ดวงโคม', [
+    T('Sheet 40 — ดวงโคม (นับตามผังแสงสว่าง)'),
+    BL(),
+    H(lum_header), ...lum_data.map(D),
+    TT(['รวม','','','',sumRow(lum_data,[4])[4]||0,'','']),
+  ], [10,22,18,12,10,20,20]);
+
+  // ── Sheet 41: เต้ารับ-สวิตช์ ─────────────────────────────────
+  const osRows = sh.outlets_switches || itemsToSheetRows(items, 'เต้ารับ-สวิตช์');
+  const os_header = ['รหัส','ชนิด','พิกัด (A)','จำนวน (จุด)','ตำแหน่ง','หมายเหตุ'];
+  const os_data = osRows.map(r => [
+    r.code||'-', r.type||r.name||'-', r.rating||'-',
+    r.count||r.qty||0, r.location||'-', r.notes||''
+  ]);
+  if (osRows.length) buildAndStyle(wb, '41_เต้ารับสวิตช์', [
+    T('Sheet 41 — เต้ารับและสวิตช์ (นับตามผังกำลัง)'),
+    BL(),
+    H(os_header), ...os_data.map(D),
+    TT(['รวม','','',sumRow(os_data,[3])[3]||0,'','']),
+  ], [10,26,12,10,20,20]);
+
+  // ── Sheet 42: สายไฟ-ท่อร้อยสาย ───────────────────────────────
+  const wireRows = sh.wiring || [];
+  const wire_header = ['รหัส','ชนิด','วงจร','ชนิดจุด','จุด','สายไฟ (สเปก)','ขนาด','ท่อร้อยสาย','แนวท่อ (m)','เส้น','สายรวม (m)','ท่อรวม (m)','ที่มา','หมายเหตุ'];
+  const wire_data = wireRows.map(r => {
+    const isPt = (r.row_type||'')==='point';
+    const route = n2(r.route_m||0), nc = Number(r.n_cond)||0;
+    const wireM = isPt ? 0 : n2(r.wire_m || route*nc);
+    const condM = isPt ? 0 : n2(r.conduit_m || route);
+    return [
+      r.code||'-', isPt?'จุด':'เมตร', r.circuit||'-',
+      isPt?(r.point_type||'-'):'', isPt?(r.points||r.qty||0):'',
+      r.conductor||r.wire_ref||'-', r.size||'-', r.conduit||r.conduit_ref||'-',
+      isPt?'':route, isPt?'':nc, isPt?'':wireM, isPt?'':condM,
+      r.basis||'-', r.notes||''
+    ];
+  });
+  if (wireRows.length) buildAndStyle(wb, '42_สายไฟท่อร้อยสาย', [
+    T('Sheet 42 — งานเดินสาย: จุด (ไฟ/ปลั๊ก) + สายป้อนเมตร (แยกท่อ/สาย)'),
+    BL(),
+    H(wire_header), ...wire_data.map(D),
+    TT(['รวม','','','',sumRow(wire_data,[4])[4]||0,'','','','','',sumRow(wire_data,[10])[10]||0,sumRow(wire_data,[11])[11]||0,'','']),
+  ], [10,8,14,12,7,16,9,13,10,6,11,11,9,18]);
+
+  // ── Sheet 43: ตู้-แผงจ่ายไฟ ──────────────────────────────────
+  const panRows = sh.panels || [];
+  const pan_header = ['รหัส','ชนิด','พิกัด','ช่อง','จำนวน (ตู้)','ตำแหน่ง','หมายเหตุ'];
+  const pan_data = panRows.map(r => [
+    r.code||'-', r.type||'-', r.rating||'-', r.ways||0,
+    r.count||r.qty||0, r.location||'-', r.notes||''
+  ]);
+  if (panRows.length) buildAndStyle(wb, '43_ตู้แผงจ่ายไฟ', [
+    T('Sheet 43 — ตู้/แผงจ่ายไฟ + หลักดิน'),
+    BL(),
+    H(pan_header), ...pan_data.map(D),
+    TT(['รวม','','','',sumRow(pan_data,[4])[4]||0,'','']),
+  ], [10,26,18,8,10,20,20]);
+
+  // ── Sheet 44: สรุปงานไฟฟ้า ───────────────────────────────────
+  const hasElec = lumRows.length || osRows.length || wireRows.length || panRows.length;
+  if (hasElec) buildAndStyle(wb, '44_สรุปไฟฟ้า', [
+    T('Sheet 44 — สรุปรวมงานไฟฟ้า'),
+    BL(),
+    H(['หมวด','รายการ','ปริมาณ','หน่วย','หมายเหตุ']),
+    D(['1. ดวงโคม','จำนวนชุดรวม',        sumRow(lum_data,[4])[4]||0,'ชุด','']),
+    D(['2. เต้ารับ-สวิตช์','จำนวนจุดรวม', sumRow(os_data,[3])[3]||0,'จุด','']),
+    D(['3. สายไฟ-ท่อร้อยสาย','จุดเดินสายรวม', sumRow(wire_data,[4])[4]||0,'จุด','วงจรย่อย ไฟ/ปลั๊ก/สวิตช์']),
+    D(['','สายป้อนรวม (สาย)', n2(sumRow(wire_data,[10])[10]||0),'เมตร','ท่อรวม '+n2(sumRow(wire_data,[11])[11]||0)+' ม. ดู Sheet 42']),
+    D(['4. ตู้-แผงจ่ายไฟ','จำนวนรวม',      sumRow(pan_data,[4])[4]||0,'ตู้/ชุด','']),
+    BL(),
+    SB('หมายเหตุ'),
+    NOTE('1. ปริมาณนี้ยังไม่คำนวณราคา — ความยาวสาย/ท่อที่อ่านจากแบบไม่ได้จะแสดงเป็น 0 (โปรดตรวจสอบและกรอกเพิ่ม)'),
+    NOTE('2. แนะนำ Wastage: สายไฟ +10% (เผื่อต่อ/ดัดโค้ง), ท่อร้อยสาย +5%'),
+    NOTE(`3. ถอดโดย SwiftBill จากแบบ "${project.name}" — ${today}`),
+  ], [18,30,12,10,24]);
+
   // ── Sheet 11: สรุปรวม (งานโครงสร้าง — ข้ามเมื่อไม่มีข้อมูลโครงสร้าง) ──
   const hasStructural = footingRows.length || colRows.length || beamRows.length
     || roofRows.length || precastRows.length || cipRows.length;

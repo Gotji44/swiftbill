@@ -85,6 +85,49 @@ const SB_SHEET_COLS = {
     {k:'level',label:'ระดับฝ้า (m)',num:1}, {k:'area_m2',label:'พื้นที่ (ม²)',num:1,alt:'volume'},
     {k:'cornice_m',label:'บัวฝ้า (m)',num:1}, {k:'notes',label:'หมายเหตุ'},
   ]},
+  // ── งานสุขาภิบาล ──────────────────────────────────────────────
+  sanitary_ware: { label:'สุขภัณฑ์', cols:[
+    {k:'code',label:'รหัส'}, {k:'type',label:'ชนิด'}, {k:'material',label:'สเปก/วัสดุ'},
+    {k:'count',label:'จำนวน (ชุด)',int:1,alt:'qty'}, {k:'location',label:'ตำแหน่ง'}, {k:'notes',label:'หมายเหตุ'},
+  ]},
+  water_pipes: { label:'ท่อน้ำดี', cols:[
+    {k:'code',label:'รหัส'}, {k:'system',label:'ระบบ'}, {k:'material',label:'วัสดุ/ชั้น'},
+    {k:'dia',label:'ขนาด Ø'}, {k:'length_m',label:'ยาว (m)',num:1,alt:'volume'}, {k:'basis',label:'ที่มา'},
+    {k:'location',label:'ตำแหน่ง'}, {k:'notes',label:'หมายเหตุ'},
+  ]},
+  drain_pipes: { label:'ท่อน้ำทิ้ง-โสโครก', cols:[
+    {k:'code',label:'รหัส'}, {k:'type',label:'ชนิด'}, {k:'material',label:'วัสดุ/ชั้น'},
+    {k:'dia',label:'ขนาด Ø'}, {k:'length_m',label:'ยาว (m)',num:1,alt:'volume'}, {k:'basis',label:'ที่มา'},
+    {k:'location',label:'ตำแหน่ง'}, {k:'notes',label:'หมายเหตุ'},
+  ]},
+  sani_tanks: { label:'บ่อ-ถังบำบัด', cols:[
+    {k:'code',label:'รหัส'}, {k:'type',label:'ชนิด'}, {k:'size',label:'ขนาด/ความจุ'},
+    {k:'count',label:'จำนวน',int:1,alt:'qty'}, {k:'location',label:'ตำแหน่ง'}, {k:'notes',label:'หมายเหตุ'},
+  ]},
+  // ── งานไฟฟ้า ──────────────────────────────────────────────────
+  luminaires: { label:'ดวงโคม', cols:[
+    {k:'code',label:'รหัส'}, {k:'type',label:'ชนิดโคม'}, {k:'lamp',label:'หลอด/สเปก'},
+    {k:'mount',label:'การติดตั้ง'}, {k:'count',label:'จำนวน (ชุด)',int:1,alt:'qty'},
+    {k:'location',label:'ตำแหน่ง'}, {k:'notes',label:'หมายเหตุ'},
+  ]},
+  outlets_switches: { label:'เต้ารับ-สวิตช์', cols:[
+    {k:'code',label:'รหัส'}, {k:'type',label:'ชนิด'}, {k:'rating',label:'พิกัด (A)'},
+    {k:'count',label:'จำนวน (จุด)',int:1,alt:'qty'}, {k:'location',label:'ตำแหน่ง'}, {k:'notes',label:'หมายเหตุ'},
+  ]},
+  wiring: { label:'สายไฟ-ท่อร้อยสาย', cols:[
+    {k:'code',label:'รหัส'}, {k:'row_type',label:'ชนิดแถว'}, {k:'circuit',label:'วงจร'},
+    {k:'point_type',label:'ชนิดจุด'}, {k:'points',label:'จุด',int:1},
+    {k:'conductor',label:'สายไฟ (สเปก)',alt:'wire_ref'}, {k:'size',label:'ขนาด'},
+    {k:'conduit',label:'ท่อร้อยสาย',alt:'conduit_ref'},
+    {k:'route_m',label:'แนวท่อ (m)',num:1}, {k:'n_cond',label:'เส้น',int:1},
+    {k:'conduit_m',label:'ท่อรวม (m)',num:1,derived:1}, {k:'wire_m',label:'สายรวม (m)',num:1,derived:1},
+    {k:'basis',label:'ที่มา'}, {k:'notes',label:'หมายเหตุ'},
+  ]},
+  panels: { label:'ตู้-แผงจ่ายไฟ', cols:[
+    {k:'code',label:'รหัส'}, {k:'type',label:'ชนิด'}, {k:'rating',label:'พิกัด'},
+    {k:'ways',label:'จำนวนช่อง',int:1}, {k:'count',label:'จำนวน (ตู้)',int:1,alt:'qty'},
+    {k:'location',label:'ตำแหน่ง'}, {k:'notes',label:'หมายเหตุ'},
+  ]},
 };
 // หมวด (CAT_COLOR) → sheet ที่เกี่ยวข้อง
 const SB_CAT_SHEETS = {
@@ -92,6 +135,10 @@ const SB_CAT_SHEETS = {
   'พื้น': ['slabs_cip','slabs_precast'], 'หลังคา': ['roof'],
   'ผนัง': ['walls'], 'ประตู-หน้าต่าง': ['doors','windows'],
   'พื้นผิว': ['floor_finishes'], 'ฝ้าเพดาน': ['ceilings'],
+  'สุขภัณฑ์': ['sanitary_ware'], 'ท่อน้ำดี': ['water_pipes'],
+  'ท่อน้ำทิ้ง-โสโครก': ['drain_pipes'], 'บ่อ-ถังบำบัด': ['sani_tanks'],
+  'ดวงโคม': ['luminaires'], 'เต้ารับ-สวิตช์': ['outlets_switches'],
+  'สายไฟ-ท่อร้อยสาย': ['wiring'], 'ตู้-แผงจ่ายไฟ': ['panels'],
 };
 // คอลัมน์ทั่วไป (สำหรับหมวดที่ไม่มี sheet เฉพาะ เช่น บันได)
 const SB_GENERIC_COLS = [
@@ -126,6 +173,9 @@ const SB_RECOMPUTE = {
   slabs_precast:(r)=>{ const B=+r.B||0,L=+r.L||0,n=+(r.count??r.qty)||1; r.area_m2=sbR2(B*L*n); },
   roof:(r)=>{ const fa=+r.flat_area||+r.volume||0,a=+r.angle_deg||30;
     r.actual_area=sbR2(fa/Math.cos(a*Math.PI/180)); },
+  // งานไฟฟ้า — สายป้อน (feeder): ท่อ = route_m, สาย = route_m × จำนวนเส้น (แก้ #3 ท่อ≠สาย); แถว point ไม่คิดความยาว
+  wiring:(r)=>{ if((r.row_type||'')==='feeder'){ const rt=+r.route_m||0, nc=+r.n_cond||0;
+    r.conduit_m=sbR2(rt); r.wire_m=sbR2(rt*nc); } },
 };
 
 function sbCell(row, col){
